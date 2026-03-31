@@ -24,6 +24,8 @@ const menuItems = computed(() => {
     { label: 'أدوات التقييم', icon: 'pi pi-check-circle', to: '/assessment', color: '#51CF66' },
     { label: 'الأدوات والوسائل', icon: 'pi pi-wrench', to: '/tools', color: '#FF6B6B' },
     { type: 'divider', label: 'التصدير' },
+    { label: 'الأسئلة الشائعة ونصائح', icon: 'pi pi-question-circle', to: '/faq', color: '#20C997' },
+    { type: 'divider', label: 'التصدير' },
     { label: 'تصدير وتقارير', icon: 'pi pi-file-export', to: '/export', color: '#845EF7' },
   ]
 

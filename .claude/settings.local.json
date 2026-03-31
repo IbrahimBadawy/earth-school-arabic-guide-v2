@@ -4,7 +4,10 @@
       "mcp__Claude_Preview__preview_start",
       "Bash(gh auth:*)",
       "Bash(gh repo:*)",
-      "Bash(gh secret:*)"
+      "Bash(gh secret:*)",
+      "Bash(gh api:*)",
+      "Bash(gh run:*)",
+      "Bash(gh workflow:*)"
     ]
   }
 }

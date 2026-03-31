@@ -121,8 +121,29 @@ async function markComplete() {
       </div>
     </div>
 
+    <!-- Day Objectives & Summary -->
+    <div v-if="dayData?.objectives?.length || dayData?.summary" class="custom-card no-hover animate__animated animate__fadeInUp" style="border-right: 4px solid var(--primary-color)">
+      <h2><i class="pi pi-flag" :style="{ color: level.color }"></i> هدف اليوم وملخصه</h2>
+      <div v-if="dayData?.summary" class="day-summary">
+        <p>{{ dayData.summary }}</p>
+      </div>
+      <div v-if="dayData?.objectives?.length" class="day-objectives">
+        <strong>الأهداف:</strong>
+        <ul>
+          <li v-for="(obj, i) in dayData.objectives" :key="i">
+            <i class="pi pi-check-circle" :style="{ color: level.color }"></i>
+            {{ obj }}
+          </li>
+        </ul>
+      </div>
+      <div v-if="dayData?.teacher_notes" class="teacher-notes-box">
+        <i class="pi pi-lightbulb" style="color: #FFD43B"></i>
+        <span>{{ dayData.teacher_notes }}</span>
+      </div>
+    </div>
+
     <!-- Day Scenario Timeline -->
-    <div class="custom-card no-hover animate__animated animate__fadeInUp">
+    <div class="custom-card no-hover animate__animated animate__fadeInUp" style="margin-top: 20px;">
       <h2><i class="pi pi-list-check" :style="{ color: level.color }"></i> سيناريو اليوم (الجدول الزمني)</h2>
       <div class="day-timeline">
         <div
@@ -509,6 +530,50 @@ h2 {
 .complete-form p {
   font-size: 0.95rem;
   color: var(--text-secondary);
+}
+
+.day-summary {
+  background: var(--bg-color);
+  padding: 14px;
+  border-radius: 10px;
+  margin-bottom: 14px;
+}
+.day-summary p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.8;
+  margin: 0;
+}
+.day-objectives ul {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.day-objectives li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+.day-objectives strong {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+.teacher-notes-box {
+  margin-top: 14px;
+  padding: 12px;
+  background: #FFFDE7;
+  border-radius: 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
 }
 
 @media (max-width: 768px) {

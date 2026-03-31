@@ -1,4 +1,5 @@
 <script setup>
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useContentStore } from '@/stores/content'
@@ -11,7 +12,11 @@ const authStore = useAuthStore()
 const contentStore = useContentStore()
 
 const levels = contentStore.levelsData
-const progression = contentStore.progressionTable
+const progression = ref([])
+
+onMounted(async () => {
+  progression.value = await contentStore.fetchProgressionItems() || []
+})
 
 function navigateToLevel(levelId) {
   router.push(`/level/${levelId}`)
@@ -149,17 +154,17 @@ function navigateToLevel(levelId) {
         </Column>
         <Column field="level1" header="المستوى الأول" style="width: 28%">
           <template #body="{ data }">
-            <span class="progression-cell level-1-cell">{{ data.level1 }}</span>
+            <span class="progression-cell level-1-cell">{{ data.level1_text }}</span>
           </template>
         </Column>
         <Column field="level2" header="المستوى الثاني" style="width: 28%">
           <template #body="{ data }">
-            <span class="progression-cell level-2-cell">{{ data.level2 }}</span>
+            <span class="progression-cell level-2-cell">{{ data.level2_text }}</span>
           </template>
         </Column>
         <Column field="level3" header="المستوى الثالث" style="width: 28%">
           <template #body="{ data }">
-            <span class="progression-cell level-3-cell">{{ data.level3 }}</span>
+            <span class="progression-cell level-3-cell">{{ data.level3_text }}</span>
           </template>
         </Column>
       </DataTable>
