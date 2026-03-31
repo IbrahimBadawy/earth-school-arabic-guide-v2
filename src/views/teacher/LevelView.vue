@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useContentStore } from '@/stores/content'
 import { useAuthStore } from '@/stores/auth'
@@ -30,13 +30,15 @@ const weeks = ref([])
 const showActivityDialog = ref(false)
 const editingActivity = ref(null)
 
-onMounted(async () => {
+watch(() => route.params.levelId, async () => {
+  const lid = Number(route.params.levelId)
+  if (!lid) return
   // Fetch all data in parallel
   const [axesData, actsData, patsData, weeksData] = await Promise.all([
-    contentStore.fetchLevelAxes(levelId.value),
-    contentStore.fetchActivities(levelId.value),
-    contentStore.fetchSessionPatterns(levelId.value),
-    contentStore.fetchWeeks(levelId.value)
+    contentStore.fetchLevelAxes(lid),
+    contentStore.fetchActivities(lid),
+    contentStore.fetchSessionPatterns(lid),
+    contentStore.fetchWeeks(lid)
   ])
 
   axes.value = axesData || []
@@ -51,7 +53,7 @@ onMounted(async () => {
 
   patterns.value = patsData || []
   weeks.value = weeksData || []
-})
+}, { immediate: true })
 
 function navigateToWeek(weekId) {
   router.push(`/level/${levelId.value}/week/${weekId}`)

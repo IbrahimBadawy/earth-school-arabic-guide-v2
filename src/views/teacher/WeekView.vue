@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useContentStore } from '@/stores/content'
 import Button from 'primevue/button'
@@ -27,16 +27,16 @@ const breadcrumbItems = computed(() => [
 
 const breadcrumbHome = { icon: 'pi pi-home', command: () => router.push('/') }
 
-onMounted(async () => {
+watch(() => route.params.weekId, async () => {
+  const wid = route.params.weekId
+  if (!wid) return
   // Fetch week data from DB
-  const wData = await contentStore.fetchWeek(weekId.value)
-  if (wData) {
-    weekData.value = wData
-  }
+  const wData = await contentStore.fetchWeek(wid)
+  if (wData) weekData.value = wData
   // Fetch days for this week
-  const dData = await contentStore.fetchDays(weekId.value)
+  const dData = await contentStore.fetchDays(wid)
   days.value = (dData && dData.length > 0) ? dData : []
-})
+}, { immediate: true })
 
 function navigateToDay(dayId) {
   router.push(`/level/${levelId.value}/week/${weekId.value}/day/${dayId}`)

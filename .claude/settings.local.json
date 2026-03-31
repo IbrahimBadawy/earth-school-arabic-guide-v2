@@ -7,7 +7,8 @@
       "Bash(gh secret:*)",
       "Bash(gh api:*)",
       "Bash(gh run:*)",
-      "Bash(gh workflow:*)"
+      "Bash(gh workflow:*)",
+      "Bash(npm run:*)"
     ]
   }
 }
