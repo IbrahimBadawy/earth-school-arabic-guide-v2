@@ -17,7 +17,7 @@ const authStore = useAuthStore()
 const toast = useToast()
 
 const levelId = computed(() => Number(route.params.levelId))
-const weekId = computed(() => Number(route.params.weekId))
+const weekId = computed(() => route.params.weekId)
 const dayId = computed(() => route.params.dayId)
 const level = computed(() => contentStore.getLevelData(levelId.value))
 const activities = computed(() => contentStore.getActivities(levelId.value))
@@ -27,24 +27,29 @@ const newComment = ref('')
 const showCompleteDialog = ref(false)
 const completionNotes = ref('')
 const dayCompleted = ref(false)
+const dayData = ref(null)
+const weekData = ref(null)
+
+const weekNumber = computed(() => weekData.value?.week_number || '')
 
 const breadcrumbItems = computed(() => [
   { label: 'الرئيسية', command: () => router.push('/') },
   { label: level.value?.name, command: () => router.push(`/level/${levelId.value}`) },
-  { label: `الأسبوع ${weekId.value}`, command: () => router.push(`/level/${levelId.value}/week/${weekId.value}`) },
-  { label: `اليوم` }
+  { label: weekData.value?.title || `الأسبوع ${weekNumber.value}`, command: () => router.push(`/level/${levelId.value}/week/${weekId.value}`) },
+  { label: dayData.value?.title || 'اليوم' }
 ])
 
 const breadcrumbHome = { icon: 'pi pi-home', command: () => router.push('/') }
 
 const currentLetter = computed(() => {
-  if (levelId.value === 1 && level.value?.letters) {
-    return level.value.letters[weekId.value - 1] || ''
+  if (levelId.value === 1 && weekData.value?.letter) {
+    return weekData.value.letter
   }
   return ''
 })
 
 const sessionSteps = computed(() => {
+  if (!level.value) return []
   if (levelId.value === 3) {
     return level.value?.session_patterns?.pattern_a?.steps || []
   }
@@ -52,17 +57,34 @@ const sessionSteps = computed(() => {
 })
 
 onMounted(async () => {
+  // Fetch day and week data
+  const dData = await contentStore.fetchDay(dayId.value)
+  if (dData) {
+    dayData.value = dData
+    dayCompleted.value = dData.is_completed || false
+    if (dData.weeks) {
+      weekData.value = dData.weeks
+    }
+  }
+  // Also fetch week data directly if needed
+  if (!weekData.value && weekId.value) {
+    const wData = await contentStore.fetchWeek(weekId.value)
+    if (wData) weekData.value = wData
+  }
+  // Fetch comments
   await contentStore.fetchComments(dayId.value)
   comments.value = contentStore.comments
 })
 
 async function submitComment() {
   if (!newComment.value.trim()) return
-  const { error } = await contentStore.addComment(dayId.value, newComment.value)
-  if (!error) {
+  const result = await contentStore.addComment(dayId.value, newComment.value)
+  if (!result.error) {
     comments.value = contentStore.comments
     newComment.value = ''
     toast.add({ severity: 'success', summary: 'تم', detail: 'تم إضافة التعليق بنجاح', life: 3000 })
+  } else {
+    toast.add({ severity: 'error', summary: 'خطأ', detail: result.error.message || 'حدث خطأ أثناء إضافة التعليق', life: 5000 })
   }
 }
 
@@ -85,7 +107,7 @@ async function markComplete() {
       <div class="day-header-content">
         <div>
           <Tag v-if="dayCompleted" severity="success" value="مكتمل" class="completed-tag" />
-          <h1>{{ level.name }} - الأسبوع {{ weekId }}</h1>
+          <h1>{{ level.name }} - {{ weekData?.title || 'الأسبوع ' + weekNumber }}</h1>
           <p>سيناريو اليوم التفصيلي - 45 دقيقة</p>
           <p v-if="currentLetter">حرف اليوم: <strong style="font-size: 1.5rem">{{ currentLetter }}</strong></p>
         </div>

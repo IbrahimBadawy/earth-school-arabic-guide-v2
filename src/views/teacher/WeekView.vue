@@ -11,39 +11,50 @@ const router = useRouter()
 const contentStore = useContentStore()
 
 const levelId = computed(() => Number(route.params.levelId))
-const weekId = computed(() => Number(route.params.weekId))
+const weekId = computed(() => route.params.weekId)
 const level = computed(() => contentStore.getLevelData(levelId.value))
 const days = ref([])
+const weekData = ref(null)
+
+const weekNumber = computed(() => weekData.value?.week_number || '')
+const weekTitle = computed(() => weekData.value?.title || `الأسبوع ${weekNumber.value}`)
 
 const breadcrumbItems = computed(() => [
   { label: 'الرئيسية', command: () => router.push('/') },
   { label: level.value?.name, command: () => router.push(`/level/${levelId.value}`) },
-  { label: `الأسبوع ${weekId.value}` }
+  { label: weekTitle.value }
 ])
 
 const breadcrumbHome = { icon: 'pi pi-home', command: () => router.push('/') }
 
 onMounted(async () => {
-  const data = await contentStore.fetchDays(weekId.value)
-  days.value = data || generateDays()
+  // Fetch week data from DB
+  const wData = await contentStore.fetchWeek(weekId.value)
+  if (wData) {
+    weekData.value = wData
+  }
+  // Fetch days for this week
+  const dData = await contentStore.fetchDays(weekId.value)
+  days.value = (dData && dData.length > 0) ? dData : []
 })
-
-function generateDays() {
-  return [
-    { id: `${weekId.value}-1`, day_number: 1, title: 'اليوم الأول', is_completed: false },
-    { id: `${weekId.value}-2`, day_number: 2, title: 'اليوم الثاني', is_completed: false }
-  ]
-}
 
 function navigateToDay(dayId) {
   router.push(`/level/${levelId.value}/week/${weekId.value}/day/${dayId}`)
 }
 
 const currentLetter = computed(() => {
-  if (levelId.value === 1 && level.value?.letters) {
-    return level.value.letters[weekId.value - 1] || ''
+  if (levelId.value === 1 && weekData.value?.letter) {
+    return weekData.value.letter
   }
   return ''
+})
+
+const sessionPattern = computed(() => {
+  if (!level.value) return []
+  if (levelId.value === 3) {
+    return level.value.session_patterns?.pattern_a?.steps || []
+  }
+  return level.value.session_pattern || []
 })
 </script>
 
@@ -53,9 +64,9 @@ const currentLetter = computed(() => {
 
     <div class="week-header animate__animated animate__fadeIn" :style="{ '--lc': level.color }">
       <div class="week-header-content">
-        <div class="week-number-big" :style="{ background: level.color }">{{ weekId }}</div>
+        <div class="week-number-big" :style="{ background: level.color }">{{ weekNumber }}</div>
         <div>
-          <h1>الأسبوع {{ weekId }} - {{ level.name }}</h1>
+          <h1>{{ weekTitle }} - {{ level.name }}</h1>
           <p v-if="currentLetter">حرف الأسبوع: <strong class="current-letter">{{ currentLetter }}</strong></p>
           <p>حصتان في الأسبوع - كل حصة 45 دقيقة</p>
         </div>
@@ -67,7 +78,7 @@ const currentLetter = computed(() => {
       <h2><i class="pi pi-clock" :style="{ color: level.color }"></i> تذكير بنمط الحصة</h2>
       <div class="pattern-reminder">
         <div
-          v-for="(step, idx) in (level.session_pattern || level.session_patterns?.pattern_a?.steps || [])"
+          v-for="(step, idx) in sessionPattern"
           :key="idx"
           class="pattern-step"
           :style="{ '--sc': level.color }"
@@ -83,7 +94,8 @@ const currentLetter = computed(() => {
     <h2 class="section-title" style="margin-top: 28px;">
       <i class="pi pi-list" :style="{ color: level.color }"></i> أيام الأسبوع
     </h2>
-    <div class="days-grid">
+
+    <div v-if="days.length" class="days-grid">
       <div
         v-for="(day, idx) in days"
         :key="day.id"
@@ -127,23 +139,28 @@ const currentLetter = computed(() => {
       </div>
     </div>
 
+    <div v-else class="empty-state">
+      <i class="pi pi-calendar"></i>
+      <h3>لا توجد أيام لهذا الأسبوع</h3>
+      <p>يرجى التواصل مع المدير لإضافة الأيام</p>
+    </div>
+
     <!-- Navigation -->
     <div class="week-navigation">
       <Button
-        v-if="weekId > 1"
-        :label="`الأسبوع ${weekId - 1}`"
+        v-if="weekNumber > 1"
+        label="الأسبوع السابق"
         icon="pi pi-arrow-right"
         text
-        @click="router.push(`/level/${levelId}/week/${weekId - 1}`)"
+        @click="router.push(`/level/${levelId}`)"
       />
       <span></span>
       <Button
-        v-if="weekId < 12"
-        :label="`الأسبوع ${weekId + 1}`"
+        label="العودة للمستوى"
         icon="pi pi-arrow-left"
         iconPos="left"
         text
-        @click="router.push(`/level/${levelId}/week/${weekId + 1}`)"
+        @click="router.push(`/level/${levelId}`)"
       />
     </div>
   </div>

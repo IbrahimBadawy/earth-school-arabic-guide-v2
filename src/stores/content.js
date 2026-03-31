@@ -289,6 +289,24 @@ export const useContentStore = defineStore('content', () => {
   ]
 
   // Supabase functions
+  async function fetchWeek(weekId) {
+    const { data, error } = await supabase
+      .from('weeks')
+      .select('*')
+      .eq('id', weekId)
+      .single()
+    return data
+  }
+
+  async function fetchDay(dayId) {
+    const { data, error } = await supabase
+      .from('days')
+      .select('*, weeks(level_id, week_number, letter, title)')
+      .eq('id', dayId)
+      .single()
+    return data
+  }
+
   async function fetchWeeks(levelId) {
     loading.value = true
     const { data, error } = await supabase
@@ -359,7 +377,7 @@ export const useContentStore = defineStore('content', () => {
   return {
     levels, weeks, days, activities, comments, loading,
     levelsData, listeningGoals, progressionTable, activitiesData, assessmentTools, toolsList,
-    fetchWeeks, fetchDays, fetchComments, addComment, markDayComplete,
+    fetchWeek, fetchDay, fetchWeeks, fetchDays, fetchComments, addComment, markDayComplete,
     getLevelData, getActivities, getAssessment
   }
 })
