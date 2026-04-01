@@ -26,7 +26,8 @@ const categoryOptions = ['الوعي الصوتي', 'الوعي البصري', '
 onMounted(async () => { await loadAll() })
 
 async function loadAll() {
-  for (const level of levels) {
+  await contentStore.fetchLevels()
+  for (const level of levels.value) {
     const items = await contentStore.fetchAssessmentItems(level.id)
     const grouped = {}
     ;(items || []).forEach(item => {

@@ -30,13 +30,14 @@ const objForm = ref({})
 onMounted(async () => { await loadAll() })
 
 async function loadAll() {
+  await contentStore.fetchLevels()
   const [lg, prog] = await Promise.all([
     contentStore.fetchListeningGoals(),
     contentStore.fetchProgressionItems()
   ])
   listeningGoals.value = lg || []
   progression.value = prog || []
-  for (const level of levels) {
+  for (const level of levels.value) {
     levelAxesMap.value[level.id] = await contentStore.fetchLevelAxes(level.id)
   }
 }
