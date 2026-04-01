@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useContentStore } from '@/stores/content'
 import { useAuthStore } from '@/stores/auth'
 import Tag from 'primevue/tag'
@@ -34,8 +34,7 @@ const levelMultiOptions = [
   { label: 'المستوى 3', value: 3 }
 ]
 
-// Direct execution
-;(async () => { tools.value = await contentStore.fetchTeachingTools() || [] })()
+onMounted(async () => { tools.value = await contentStore.fetchTeachingTools() || [] })
 
 const filteredTools = computed(() => {
   if (!selectedLevel.value) return tools.value

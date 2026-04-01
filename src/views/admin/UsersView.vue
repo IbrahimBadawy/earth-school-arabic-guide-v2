@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { supabase } from '@/lib/supabase'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -43,7 +43,7 @@ const levelOptions = [
   { label: 'المستوى الثالث', value: 3 }
 ]
 
-fetchUsers()
+onMounted(() => fetchUsers())
 
 async function fetchUsers() {
   loading.value = true

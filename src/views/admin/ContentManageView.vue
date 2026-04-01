@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { supabase } from '@/lib/supabase'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
@@ -34,8 +34,10 @@ const levelOptions = [
   { label: 'المستوى الثالث', value: 3 }
 ]
 
-fetchWeeks()
-fetchDays()
+onMounted(() => {
+  fetchWeeks()
+  fetchDays()
+})
 
 async function fetchWeeks() {
   loading.value = true

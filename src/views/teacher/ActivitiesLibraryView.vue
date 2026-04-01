@@ -38,14 +38,11 @@ const levelOptions = [
 
 const levelColors = { 1: '#4CAF93', 2: '#FF9F43', 3: '#6C63FF' }
 
-// Fetch data immediately (not in onMounted - runs at setup time)
-async function initData() {
+onMounted(async () => {
   const { data } = await supabase.from('activities').select('*').order('level_id').order('category').order('sort_order')
   allActivities.value = data || []
-  const tools = await contentStore.fetchTeachingTools()
-  allTools.value = tools || []
-}
-initData()
+  allTools.value = await contentStore.fetchTeachingTools() || []
+})
 
 const categories = computed(() => {
   const cats = new Set()

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useContentStore } from '@/stores/content'
 import { useAuthStore } from '@/stores/auth'
 import Accordion from 'primevue/accordion'
@@ -30,7 +30,7 @@ const faqCategories = ['إدارة الصف', 'الحروف والقراءة', '
 const tipCategories = ['بداية الحصة', 'قراءة القصة', 'الأنشطة', 'التشجيع', 'نهاية الحصة']
 
 // Direct execution
-;(async () => {
+onMounted(async () => {
   faqs.value = await contentStore.fetchFaqItems() || []
   tips.value = await contentStore.fetchImplementationTips() || []
 })()

@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useContentStore } from '@/stores/content'
@@ -15,9 +15,9 @@ const levels = contentStore.levelsData
 const progression = ref([])
 
 // Direct execution
-;(async () => {
+onMounted(async () => {
   progression.value = await contentStore.fetchProgressionItems() || []
-})()
+})
 
 function navigateToLevel(levelId) {
   router.push(`/level/${levelId}`)
