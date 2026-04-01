@@ -29,6 +29,8 @@ const patterns = ref([])
 const weeks = ref([])
 const showActivityDialog = ref(false)
 const editingActivity = ref(null)
+const expandedActivity = ref(null)
+const editMode = ref(false)
 
 watch(() => route.params.levelId, async () => {
   const lid = Number(route.params.levelId)
@@ -65,23 +67,60 @@ const sessionSteps = computed(() => {
   return patterns.value[0]?.steps || []
 })
 
-function openEditActivity(activity) {
-  editingActivity.value = { ...activity }
+function toggleExpand(id) {
+  expandedActivity.value = expandedActivity.value === id ? null : id
+}
+
+function openAddActivity() {
+  editMode.value = false
+  editingActivity.value = { level_id: levelId.value, category: '', name: '', description: '', activity_type: '', duration: 8, steps: '', tools: '', teacher_tips: '', sort_order: 0, differentiation: { advanced: '', struggling: '' } }
   showActivityDialog.value = true
 }
 
+function openEditActivity(activity) {
+  editMode.value = true
+  editingActivity.value = {
+    ...activity,
+    steps: (activity.steps || []).join('\n'),
+    tools: (activity.tools || []).join('، '),
+    teacher_tips: (activity.teacher_tips || []).join('\n'),
+    differentiation: activity.differentiation || { advanced: '', struggling: '' }
+  }
+  showActivityDialog.value = true
+}
+
+async function reloadActivities() {
+  const actsData = await contentStore.fetchActivities(levelId.value)
+  const grouped = {}
+  ;(actsData || []).forEach(a => {
+    if (!grouped[a.category]) grouped[a.category] = []
+    grouped[a.category].push(a)
+  })
+  activities.value = grouped
+}
+
 async function saveActivity() {
-  const { error } = await contentStore.upsertRecord('activities', editingActivity.value)
+  const payload = {
+    ...editingActivity.value,
+    steps: typeof editingActivity.value.steps === 'string' ? editingActivity.value.steps.split('\n').filter(s => s.trim()) : editingActivity.value.steps,
+    tools: typeof editingActivity.value.tools === 'string' ? editingActivity.value.tools.split('،').map(t => t.trim()).filter(t => t) : editingActivity.value.tools,
+    teacher_tips: typeof editingActivity.value.teacher_tips === 'string' ? editingActivity.value.teacher_tips.split('\n').filter(t => t.trim()) : editingActivity.value.teacher_tips
+  }
+  const { error } = await contentStore.upsertRecord('activities', payload)
   if (!error) {
     toast.add({ severity: 'success', summary: 'تم', detail: 'تم حفظ النشاط', life: 3000 })
-    const actsData = await contentStore.fetchActivities(levelId.value)
-    const grouped = {}
-    ;(actsData || []).forEach(a => {
-      if (!grouped[a.category]) grouped[a.category] = []
-      grouped[a.category].push(a)
-    })
-    activities.value = grouped
     showActivityDialog.value = false
+    await reloadActivities()
+  } else {
+    toast.add({ severity: 'error', summary: 'خطأ', detail: error.message, life: 5000 })
+  }
+}
+
+async function deleteActivity(id) {
+  const { error } = await contentStore.deleteRecord('activities', id)
+  if (!error) {
+    toast.add({ severity: 'success', summary: 'تم', detail: 'تم حذف النشاط', life: 3000 })
+    await reloadActivities()
   }
 }
 </script>
@@ -178,58 +217,58 @@ async function saveActivity() {
       </div>
     </div>
 
-    <!-- Activities from DB -->
+    <!-- Activities from DB - Foldable -->
     <div class="custom-card no-hover animate__animated animate__fadeInUp" style="animation-delay: 0.3s; margin-top: 20px;">
-      <h2><i class="pi pi-palette" :style="{ color: level.color }"></i> الأنشطة</h2>
+      <div class="section-header-row">
+        <h2><i class="pi pi-palette" :style="{ color: level.color }"></i> الأنشطة</h2>
+        <Button v-if="authStore.isAdmin" label="إضافة نشاط" icon="pi pi-plus" size="small" @click="openAddActivity" />
+      </div>
       <div v-for="(catActivities, category) in activities" :key="category" class="activity-category">
         <h3 class="category-title">
           <span class="category-badge" :style="{ background: level.color + '20', color: level.color }">{{ category }}</span>
+          <Tag :value="`${catActivities.length}`" severity="secondary" />
         </h3>
-        <div class="activities-grid">
-          <div v-for="activity in catActivities" :key="activity.id" class="activity-card stagger-item">
-            <div class="activity-header">
-              <h4>{{ activity.name }}</h4>
-              <div style="display:flex; gap:4px; align-items:center">
-                <Tag :value="activity.activity_type" :style="{ background: level.color + '15', color: level.color }" />
-                <Button v-if="authStore.isAdmin" icon="pi pi-pencil" text rounded size="small" @click="openEditActivity(activity)" />
+        <div class="activities-list-fold">
+          <div v-for="activity in catActivities" :key="activity.id" class="activity-fold-card"
+               :class="{ expanded: expandedActivity === activity.id }" :style="{ '--ac': level.color }">
+            <!-- Collapsed Header -->
+            <div class="fold-header" @click="toggleExpand(activity.id)">
+              <div class="fold-title">
+                <h4>{{ activity.name }}</h4>
+                <div class="fold-tags">
+                  <Tag :value="activity.activity_type" :style="{ background: level.color + '15', color: level.color }" />
+                  <span class="act-dur"><i class="pi pi-clock"></i> {{ activity.duration }} د</span>
+                </div>
+              </div>
+              <div class="fold-actions">
+                <Button v-if="authStore.isAdmin" icon="pi pi-pencil" text rounded size="small" @click.stop="openEditActivity(activity)" />
+                <Button v-if="authStore.isAdmin" icon="pi pi-trash" text rounded size="small" severity="danger" @click.stop="deleteActivity(activity.id)" />
+                <i :class="expandedActivity === activity.id ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" style="color: var(--text-muted)"></i>
               </div>
             </div>
-            <p>{{ activity.description }}</p>
-
-            <!-- Steps -->
-            <div v-if="activity.steps?.length" class="activity-steps">
-              <strong>خطوات التنفيذ:</strong>
-              <ol>
-                <li v-for="(step, i) in activity.steps" :key="i">{{ step }}</li>
-              </ol>
-            </div>
-
-            <!-- Teacher Tips -->
-            <div v-if="activity.teacher_tips?.length" class="activity-tips">
-              <strong><i class="pi pi-lightbulb" style="color: #FFD43B"></i> نصائح للمعلمة:</strong>
-              <ul>
-                <li v-for="(tip, i) in activity.teacher_tips" :key="i">{{ tip }}</li>
-              </ul>
-            </div>
-
-            <div class="activity-meta">
-              <span class="meta-item"><i class="pi pi-clock"></i> {{ activity.duration }} دقيقة</span>
-              <div v-if="activity.tools?.length" class="tools-list">
-                <span v-for="tool in activity.tools" :key="tool" class="tool-tag">
-                  <i class="pi pi-wrench"></i> {{ tool }}
-                </span>
+            <!-- Collapsed preview -->
+            <p v-if="expandedActivity !== activity.id" class="fold-preview">{{ activity.description }}</p>
+            <!-- Expanded Body -->
+            <div v-if="expandedActivity === activity.id" class="fold-body animate__animated animate__fadeIn">
+              <p class="fold-desc">{{ activity.description }}</p>
+              <div v-if="activity.steps?.length" class="fold-section">
+                <strong><i class="pi pi-list-check" :style="{ color: level.color }"></i> خطوات التنفيذ:</strong>
+                <ol><li v-for="(s, i) in activity.steps" :key="i">{{ s }}</li></ol>
               </div>
-            </div>
-
-            <!-- Differentiation -->
-            <div v-if="activity.differentiation && (activity.differentiation.advanced || activity.differentiation.struggling)" class="differentiation">
-              <div v-if="activity.differentiation.advanced" class="diff-item advanced">
-                <Tag value="للمتقدمين" severity="success" />
-                <span>{{ activity.differentiation.advanced }}</span>
+              <div v-if="activity.tools?.length" class="fold-section">
+                <strong><i class="pi pi-wrench" style="color:#339AF0"></i> الأدوات:</strong>
+                <div class="fold-tools"><span v-for="t in activity.tools" :key="t" class="tool-chip-sm">{{ t }}</span></div>
               </div>
-              <div v-if="activity.differentiation.struggling" class="diff-item struggling">
-                <Tag value="لمن يحتاج دعماً" severity="warn" />
-                <span>{{ activity.differentiation.struggling }}</span>
+              <div v-if="activity.teacher_tips?.length" class="fold-section tips-box">
+                <strong><i class="pi pi-lightbulb" style="color:#FFD43B"></i> نصائح للمعلمة:</strong>
+                <ul><li v-for="(t, i) in activity.teacher_tips" :key="i">{{ t }}</li></ul>
+              </div>
+              <div v-if="activity.differentiation && (activity.differentiation.advanced || activity.differentiation.struggling)" class="fold-section">
+                <strong><i class="pi pi-sliders-h" style="color:#845EF7"></i> التمايز:</strong>
+                <div class="diff-row">
+                  <div v-if="activity.differentiation.advanced" class="diff-box adv"><Tag value="للمتقدمين" severity="success" /><span>{{ activity.differentiation.advanced }}</span></div>
+                  <div v-if="activity.differentiation.struggling" class="diff-box str"><Tag value="لمن يحتاج دعماً" severity="warn" /><span>{{ activity.differentiation.struggling }}</span></div>
+                </div>
               </div>
             </div>
           </div>
@@ -255,29 +294,27 @@ async function saveActivity() {
       </div>
     </div>
 
-    <!-- Edit Activity Dialog -->
-    <Dialog v-model:visible="showActivityDialog" header="تعديل النشاط" :style="{ width: '600px' }" modal>
+    <!-- Edit Activity Dialog (Full) -->
+    <Dialog v-model:visible="showActivityDialog" :header="editMode ? 'تعديل نشاط' : 'إضافة نشاط جديد'" :style="{ width: '650px' }" modal>
       <div class="dialog-form" v-if="editingActivity">
-        <div class="form-field">
-          <label>اسم النشاط</label>
-          <InputText v-model="editingActivity.name" class="w-full" />
+        <div class="form-row">
+          <div class="form-field"><label>التصنيف</label><InputText v-model="editingActivity.category" class="w-full" placeholder="مثال: الوعي الصوتي" /></div>
+          <div class="form-field"><label>النوع</label><InputText v-model="editingActivity.activity_type" class="w-full" placeholder="حركي / بصري..." /></div>
         </div>
-        <div class="form-field">
-          <label>الوصف</label>
-          <Textarea v-model="editingActivity.description" rows="3" class="w-full" />
-        </div>
-        <div class="form-field">
-          <label>النوع</label>
-          <InputText v-model="editingActivity.activity_type" class="w-full" />
-        </div>
-        <div class="form-field">
-          <label>المدة (دقيقة)</label>
-          <InputText v-model.number="editingActivity.duration" type="number" class="w-full" />
+        <div class="form-field"><label>اسم النشاط</label><InputText v-model="editingActivity.name" class="w-full" /></div>
+        <div class="form-field"><label>الوصف</label><Textarea v-model="editingActivity.description" rows="2" class="w-full" /></div>
+        <div class="form-field"><label>المدة (دقيقة)</label><InputText v-model.number="editingActivity.duration" type="number" class="w-full" /></div>
+        <div class="form-field"><label>خطوات التنفيذ (كل خطوة في سطر)</label><Textarea v-model="editingActivity.steps" rows="5" class="w-full" /></div>
+        <div class="form-field"><label>الأدوات (مفصولة بفاصلة ،)</label><InputText v-model="editingActivity.tools" class="w-full" /></div>
+        <div class="form-field"><label>نصائح للمعلمة (كل نصيحة في سطر)</label><Textarea v-model="editingActivity.teacher_tips" rows="4" class="w-full" /></div>
+        <div class="form-row">
+          <div class="form-field"><label>تعديلات للمتقدمين</label><InputText v-model="editingActivity.differentiation.advanced" class="w-full" /></div>
+          <div class="form-field"><label>تعديلات لمن يحتاج دعماً</label><InputText v-model="editingActivity.differentiation.struggling" class="w-full" /></div>
         </div>
       </div>
       <template #footer>
         <Button label="إلغاء" text @click="showActivityDialog = false" />
-        <Button label="حفظ" icon="pi pi-check" @click="saveActivity" />
+        <Button :label="editMode ? 'حفظ' : 'إضافة'" icon="pi pi-check" @click="saveActivity" />
       </template>
     </Dialog>
   </div>
@@ -370,6 +407,34 @@ async function saveActivity() {
 .form-field { display: flex; flex-direction: column; gap: 6px; }
 .form-field label { font-size: 0.9rem; font-weight: 600; }
 .w-full { width: 100%; }
+.section-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.section-header-row h2 { margin-bottom: 0; }
+.activities-list-fold { display: flex; flex-direction: column; gap: 10px; }
+.activity-fold-card { padding: 14px 16px; background: var(--bg-color); border-radius: 12px; border: 1px solid var(--border-color); border-right: 4px solid var(--ac); transition: all 0.2s; }
+.fold-header { display: flex; justify-content: space-between; align-items: flex-start; cursor: pointer; }
+.fold-title h4 { font-size: 0.95rem; margin-bottom: 4px; }
+.fold-tags { display: flex; gap: 6px; align-items: center; }
+.act-dur { font-size: 0.78rem; color: var(--text-muted); display: flex; align-items: center; gap: 3px; }
+.fold-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.fold-preview { font-size: 0.82rem; color: var(--text-muted); margin: 6px 0 0; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.fold-body { padding-top: 12px; border-top: 1px solid var(--border-color); margin-top: 10px; }
+.fold-desc { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.8; margin-bottom: 12px; }
+.fold-section { margin-bottom: 12px; }
+.fold-section strong { font-size: 0.88rem; display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.fold-section ol { padding-right: 20px; margin: 0; }
+.fold-section ol li { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.9; }
+.fold-section ul { list-style: none; padding: 0; margin: 0; }
+.fold-section ul li { font-size: 0.85rem; color: var(--text-secondary); padding: 2px 0; line-height: 1.7; }
+.fold-section ul li::before { content: '💡 '; }
+.fold-tools { display: flex; flex-wrap: wrap; gap: 6px; }
+.tool-chip-sm { background: white; padding: 3px 10px; border-radius: 6px; font-size: 0.78rem; color: var(--text-secondary); border: 1px solid var(--border-color); }
+.tips-box { background: #FFFDE7; padding: 10px; border-radius: 8px; }
+.diff-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.diff-box { padding: 10px; border-radius: 8px; }
+.diff-box.adv { background: #E8F5E9; }
+.diff-box.str { background: #FFF3E0; }
+.diff-box span { font-size: 0.82rem; color: var(--text-secondary); display: block; margin-top: 4px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 768px) {
   .level-header-content { flex-direction: column; text-align: center; }
   .activities-grid, .patterns-grid { grid-template-columns: 1fr; }

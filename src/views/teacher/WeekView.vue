@@ -5,6 +5,7 @@ import { useContentStore } from '@/stores/content'
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
 import Breadcrumb from 'primevue/breadcrumb'
+import QuickNav from '@/components/common/QuickNav.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -60,6 +61,7 @@ const sessionPattern = computed(() => {
 
 <template>
   <div class="week-view" v-if="level">
+    <QuickNav />
     <Breadcrumb :model="breadcrumbItems" :home="breadcrumbHome" class="week-breadcrumb" />
 
     <div class="week-header animate__animated animate__fadeIn" :style="{ '--lc': level.color }">

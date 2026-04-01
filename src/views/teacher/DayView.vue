@@ -9,6 +9,7 @@ import Breadcrumb from 'primevue/breadcrumb'
 import Textarea from 'primevue/textarea'
 import InputText from 'primevue/inputtext'
 import Dialog from 'primevue/dialog'
+import QuickNav from '@/components/common/QuickNav.vue'
 import { useToast } from 'primevue/usetoast'
 
 const route = useRoute()
@@ -162,6 +163,7 @@ function getActivitiesForStep(stepName) {
 
 <template>
   <div class="day-view" v-if="level">
+    <QuickNav />
     <Breadcrumb :model="breadcrumbItems" :home="breadcrumbHome" class="day-breadcrumb" />
 
     <!-- Day Header -->

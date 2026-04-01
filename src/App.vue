@@ -16,7 +16,7 @@ const isBlankLayout = computed(() => route.meta.layout === 'blank')
   <Toast position="top-left" />
   <ConfirmDialog />
   <AppLayout v-if="!isBlankLayout && authStore.user">
-    <router-view v-slot="{ Component }">
+    <router-view v-slot="{ Component }" :key="route.fullPath">
       <transition name="slide" mode="out-in">
         <component :is="Component" />
       </transition>
