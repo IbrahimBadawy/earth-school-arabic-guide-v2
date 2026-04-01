@@ -210,18 +210,6 @@ async function deletePatternStep(patternId, idx) {
       </div>
     </div>
 
-    <!-- Letters (Level 1 only) -->
-    <div v-if="levelId === 1 && level.letters" class="letters-section custom-card no-hover animate__animated animate__fadeInUp">
-      <h2><i class="pi pi-bookmark" :style="{ color: level.color }"></i> الحروف المقررة (حرف كل أسبوع)</h2>
-      <div class="letters-grid">
-        <div v-for="(letter, idx) in level.letters" :key="idx" class="letter-item stagger-item"
-             :style="{ animationDelay: `${idx * 0.05}s`, '--lc': level.color }">
-          <span class="letter-char">{{ letter }}</span>
-          <span class="letter-week">أسبوع {{ idx + 1 }}</span>
-        </div>
-      </div>
-    </div>
-
     <!-- Axes / Objectives from DB -->
     <div class="custom-card no-hover animate__animated animate__fadeInUp" style="animation-delay: 0.1s">
       <div class="section-header-row">
