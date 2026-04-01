@@ -2,9 +2,7 @@
 import { ref } from 'vue'
 import { useContentStore } from '@/stores/content'
 import Button from 'primevue/button'
-import Dropdown from 'primevue/dropdown'
 import MultiSelect from 'primevue/multiselect'
-import Checkbox from 'primevue/checkbox'
 import Tag from 'primevue/tag'
 import { useToast } from 'primevue/usetoast'
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx'
@@ -13,15 +11,14 @@ import { saveAs } from 'file-saver'
 const toast = useToast()
 const contentStore = useContentStore()
 
-const selectedLevel = ref(null)
+const selectedLevels = ref([1, 2, 3])
 const selectedSections = ref(['objectives', 'activities', 'assessment', 'tools', 'session_pattern', 'listening', 'progression', 'daily'])
-const includeAllLevels = ref(false)
 const exporting = ref(false)
 
 const levelOptions = [
-  { label: 'المستوى الأول', value: 1 },
-  { label: 'المستوى الثاني', value: 2 },
-  { label: 'المستوى الثالث', value: 3 }
+  { label: 'المستوى الأول (3-4 سنوات)', value: 1 },
+  { label: 'المستوى الثاني (4-5 سنوات)', value: 2 },
+  { label: 'المستوى الثالث (5-6 سنوات)', value: 3 }
 ]
 
 const sectionOptions = [
@@ -53,7 +50,7 @@ async function exportToWord() {
   exporting.value = true
   try {
     const sections = []
-    const levelsToExport = includeAllLevels.value ? [1, 2, 3] : (selectedLevel.value ? [selectedLevel.value] : [1, 2, 3])
+    const levelsToExport = selectedLevels.value.length ? selectedLevels.value : [1, 2, 3]
     const sel = selectedSections.value
 
     // Title
@@ -223,7 +220,7 @@ async function exportToWord() {
 
     const doc = new Document({ sections: [{ properties: { bidi: true }, children: sections }] })
     const blob = await Packer.toBlob(doc)
-    const fileName = includeAllLevels.value ? 'دليل_معلمات_اللغة_العربية_كامل.docx' : `دليل_المستوى_${selectedLevel.value || 'كامل'}.docx`
+    const fileName = selectedLevels.value.length === 3 ? 'دليل_معلمات_اللغة_العربية_كامل.docx' : `دليل_المستويات_${selectedLevels.value.join('-')}.docx`
     saveAs(blob, fileName)
     toast.add({ severity: 'success', summary: 'تم التصدير', detail: 'تم تصدير الملف بنجاح', life: 3000 })
   } catch (err) {
@@ -247,12 +244,8 @@ async function exportToWord() {
         <h2><i class="pi pi-sliders-h" style="color: #845EF7"></i> خيارات التصدير</h2>
         <div class="export-options">
           <div class="option-group">
-            <label class="option-label">المستوى</label>
-            <div class="level-option">
-              <Checkbox v-model="includeAllLevels" :binary="true" inputId="allLevels" />
-              <label for="allLevels" style="margin-right: 8px">تصدير جميع المستويات</label>
-            </div>
-            <Dropdown v-if="!includeAllLevels" v-model="selectedLevel" :options="levelOptions" optionLabel="label" optionValue="value" placeholder="اختر المستوى" class="w-full" style="margin-top: 8px" />
+            <label class="option-label">المستويات</label>
+            <MultiSelect v-model="selectedLevels" :options="levelOptions" optionLabel="label" optionValue="value" placeholder="اختر المستويات" class="w-full" display="chip" />
           </div>
           <div class="option-group">
             <label class="option-label">الأقسام المطلوبة</label>
@@ -271,7 +264,7 @@ async function exportToWord() {
             <span :style="{ color: selectedSections.includes(section.value) ? 'var(--text-primary)' : 'var(--text-muted)' }">{{ section.label }}</span>
           </div>
           <div class="preview-summary">
-            <div class="summary-item"><i class="pi pi-file" style="color: #845EF7"></i><span>المستويات: {{ includeAllLevels ? 'جميع المستويات (3)' : (selectedLevel ? `المستوى ${selectedLevel}` : 'غير محدد') }}</span></div>
+            <div class="summary-item"><i class="pi pi-file" style="color: #845EF7"></i><span>المستويات: {{ selectedLevels.length === 3 ? 'جميع المستويات' : selectedLevels.length ? `${selectedLevels.length} مستويات` : 'غير محدد' }}</span></div>
             <div class="summary-item"><i class="pi pi-list" style="color: #339AF0"></i><span>الأقسام: {{ selectedSections.length }} من {{ sectionOptions.length }}</span></div>
             <div v-if="selectedSections.includes('daily')" class="summary-item"><i class="pi pi-calendar" style="color: #FF9F43"></i><span>يشمل السيناريو اليومي التفصيلي لكل يوم</span></div>
           </div>
