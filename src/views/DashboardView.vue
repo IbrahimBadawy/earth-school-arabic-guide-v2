@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useContentStore } from '@/stores/content'
 import Button from 'primevue/button'
+import Dropdown from 'primevue/dropdown'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 
@@ -13,8 +14,18 @@ const contentStore = useContentStore()
 
 const levels = computed(() => contentStore.levelsData)
 const progression = ref([])
+const unitOptions = computed(() => contentStore.units.map(u => ({ label: u.name + (u.year ? ` (${u.year})` : ''), value: u.id })))
+const selectedUnitId = computed({
+  get: () => contentStore.activeUnit?.id,
+  set: (val) => { contentStore.setActiveUnit(val); reloadData() }
+})
+
+async function reloadData() {
+  progression.value = await contentStore.fetchProgressionItems() || []
+}
 
 onMounted(async () => {
+  await contentStore.fetchUnits()
   await contentStore.fetchLevels()
   progression.value = await contentStore.fetchProgressionItems() || []
 })
@@ -26,11 +37,28 @@ function navigateToLevel(levelId) {
 
 <template>
   <div class="dashboard">
+    <!-- Unit Selector -->
+    <div v-if="unitOptions.length > 1" class="unit-selector-bar animate__animated animate__fadeIn">
+      <label><i class="pi pi-folder"></i> الوحدة التعليمية:</label>
+      <Dropdown
+        v-model="selectedUnitId"
+        :options="unitOptions"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="اختر الوحدة"
+        class="unit-dropdown"
+      />
+    </div>
+
     <!-- Welcome -->
     <div class="welcome-section animate__animated animate__fadeIn">
       <div class="welcome-content">
         <h1>مرحباً {{ authStore.displayName }} 👋</h1>
         <p>حقيبة المعلمة الشاملة لفقرة اللغة العربية - مدرسة الأرض</p>
+        <span v-if="contentStore.activeUnit" class="active-unit-label">
+          <i class="pi pi-folder"></i> {{ contentStore.activeUnit.name }}
+          <span v-if="contentStore.activeUnit.year"> - {{ contentStore.activeUnit.year }}</span>
+        </span>
       </div>
       <div class="welcome-decoration">
         <span class="deco-item">📚</span>
@@ -380,6 +408,43 @@ function navigateToLevel(levelId) {
 .level-2-cell { color: var(--level2-color); }
 .level-3-cell { color: var(--level3-color); }
 
+.unit-selector-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 10px 16px;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.unit-selector-bar label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.unit-dropdown {
+  min-width: 250px;
+}
+
+.active-unit-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
 @media (max-width: 768px) {
   .welcome-section {
     flex-direction: column;
@@ -391,6 +456,14 @@ function navigateToLevel(levelId) {
   }
   .welcome-content h1 {
     font-size: 1.3rem;
+  }
+  .unit-selector-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .unit-dropdown {
+    min-width: unset;
+    width: 100%;
   }
 }
 </style>

@@ -40,6 +40,7 @@ const menuItems = computed(() => {
   if (authStore.isAdmin) {
     items.push(
       { type: 'divider', label: 'الإدارة' },
+      { label: 'إدارة الوحدات', icon: 'pi pi-folder', to: '/admin/units', color: '#845EF7' },
       { label: 'إدارة المستخدمين', icon: 'pi pi-users', to: '/admin/users', color: '#E64980' },
       { label: 'إدارة المحتوى', icon: 'pi pi-cog', to: '/admin/content', color: '#FF9F43' },
       { label: 'التقارير', icon: 'pi pi-chart-bar', to: '/admin/reports', color: '#20C997' }

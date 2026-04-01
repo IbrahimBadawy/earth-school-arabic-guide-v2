@@ -40,6 +40,7 @@ const levelColors = computed(() => {
 })
 
 onMounted(async () => {
+  await contentStore.fetchUnits()
   await contentStore.fetchLevels()
   if (levels.value.length) selectedLevel.value = levels.value[0].id
   fetchAll()
@@ -47,10 +48,14 @@ onMounted(async () => {
 
 async function fetchAll() {
   loading.value = true
-  const { data } = await supabase
+  let query = supabase
     .from('weeks')
     .select('*, days(id, day_number, title, is_completed, summary, objectives, teacher_notes)')
     .order('level_id').order('week_number')
+  if (contentStore.activeUnit?.id) {
+    query = query.eq('unit_id', contentStore.activeUnit.id)
+  }
+  const { data } = await query
   weeks.value = (data || []).map(w => ({
     ...w,
     days: (w.days || []).sort((a, b) => a.day_number - b.day_number)
@@ -83,6 +88,9 @@ function openEditWeek(week) {
 
 async function saveWeek() {
   const payload = { ...weekForm.value }
+  if (!editMode.value && contentStore.activeUnit?.id) {
+    payload.unit_id = contentStore.activeUnit.id
+  }
   if (editMode.value) {
     await supabase.from('weeks').update(payload).eq('id', payload.id)
   } else {
@@ -163,12 +171,14 @@ async function generateWeeksForLevel() {
   const letters = ['ا', 'ب', 'ح', 'د', 'ر', 'س', 'ش', 'ع', 'ف', 'ك', 'ل', 'م']
   const inserts = []
   for (let w = 1; w <= 12; w++) {
-    inserts.push({
+    const weekData = {
       level_id: selectedLevel.value,
       week_number: w,
       title: `الأسبوع ${w}`,
       letter: selectedLevel.value === 1 ? (letters[w - 1] || '') : ''
-    })
+    }
+    if (contentStore.activeUnit?.id) weekData.unit_id = contentStore.activeUnit.id
+    inserts.push(weekData)
   }
   const { data: newWeeks } = await supabase.from('weeks').upsert(inserts, { onConflict: 'level_id,week_number' }).select('id')
   if (newWeeks) {
@@ -243,6 +253,13 @@ function confirmDeleteLevel(lvl) {
 
 <template>
   <div class="content-manage">
+    <!-- Active Unit Info -->
+    <div v-if="contentStore.activeUnit" class="active-unit-bar">
+      <i class="pi pi-folder"></i>
+      <span>الوحدة النشطة: <strong>{{ contentStore.activeUnit.name }}</strong></span>
+      <Tag v-if="contentStore.activeUnit.year" :value="contentStore.activeUnit.year" severity="info" />
+    </div>
+
     <div class="page-header">
       <div class="header-row">
         <div>
@@ -391,6 +408,8 @@ function confirmDeleteLevel(lvl) {
 </template>
 
 <style scoped>
+.active-unit-bar { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: linear-gradient(135deg, #d3f9d8, #b2f2bb); border: 1px solid #69db7c; border-radius: 10px; margin-bottom: 16px; font-size: 0.9rem; }
+.active-unit-bar i { color: #2b8a3e; }
 .section-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .section-header-row h2 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 1.1rem; }
 .header-row { display: flex; justify-content: space-between; align-items: flex-start; }

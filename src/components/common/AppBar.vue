@@ -1,16 +1,20 @@
 <script setup>
 import { useAuthStore } from '@/stores/auth'
+import { useContentStore } from '@/stores/content'
 import { useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import Avatar from 'primevue/avatar'
 import Menu from 'primevue/menu'
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
 const props = defineProps({ sidebarVisible: { type: Boolean, default: true } })
 const emit = defineEmits(['toggle-sidebar'])
 const authStore = useAuthStore()
+const contentStore = useContentStore()
 const router = useRouter()
 const userMenu = ref()
+
+onMounted(() => { contentStore.fetchUnits() })
 
 const menuItems = ref([
   {
@@ -48,6 +52,10 @@ function toggleMenu(event) {
       <div class="app-bar-title">
         <img src="/LOGO.png" alt="مدرسة الأرض" class="app-logo" />
         <span class="title-text">دليل معلمات اللغة العربية</span>
+        <span v-if="contentStore.activeUnit" class="active-unit-badge">
+          <i class="pi pi-folder"></i>
+          {{ contentStore.activeUnit.name }}
+        </span>
       </div>
     </div>
     <div class="app-bar-left">
@@ -109,6 +117,23 @@ function toggleMenu(event) {
   font-size: 1.1rem;
   font-weight: 700;
   color: var(--text-primary);
+}
+
+.active-unit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.active-unit-badge i {
+  font-size: 0.75rem;
 }
 
 .app-bar-left {
