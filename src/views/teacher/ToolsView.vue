@@ -9,6 +9,7 @@ import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import MultiSelect from 'primevue/multiselect'
+import IconPicker from '@/components/common/IconPicker.vue'
 import { useToast } from 'primevue/usetoast'
 
 const contentStore = useContentStore()
@@ -130,7 +131,7 @@ async function deleteTool(id) {
         <div class="form-field"><label>اسم الأداة</label><InputText v-model="form.name" class="w-full" /></div>
         <div class="form-field"><label>التصنيف</label><InputText v-model="form.category" class="w-full" placeholder="بطاقات / أدوات كتابة / ..." /></div>
         <div class="form-field"><label>الوصف</label><Textarea v-model="form.description" rows="2" class="w-full" /></div>
-        <div class="form-field"><label>الأيقونة</label><InputText v-model="form.icon" class="w-full" placeholder="pi pi-box" /></div>
+        <div class="form-field"><label>الأيقونة</label><IconPicker v-model="form.icon" /></div>
         <div class="form-field"><label>المستويات</label><MultiSelect v-model="form.levels" :options="levelMultiOptions" optionLabel="label" optionValue="value" placeholder="اختر المستويات" class="w-full" /></div>
       </div>
       <template #footer>

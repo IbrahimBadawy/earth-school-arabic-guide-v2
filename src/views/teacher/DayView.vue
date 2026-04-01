@@ -11,6 +11,7 @@ import InputText from 'primevue/inputtext'
 import Dialog from 'primevue/dialog'
 import Dropdown from 'primevue/dropdown'
 import QuickNav from '@/components/common/QuickNav.vue'
+import IconPicker from '@/components/common/IconPicker.vue'
 import { useToast } from 'primevue/usetoast'
 
 const route = useRoute()
@@ -215,19 +216,6 @@ async function deleteStep(idx) {
     toast.add({ severity: 'success', summary: 'تم', detail: 'تم حذف الخطوة', life: 3000 })
   }
 }
-
-const iconOptions = [
-  { label: 'كتاب', value: 'pi pi-book' },
-  { label: 'تعليقات', value: 'pi pi-comments' },
-  { label: 'فن', value: 'pi pi-palette' },
-  { label: 'صوت', value: 'pi pi-volume-up' },
-  { label: 'بصري', value: 'pi pi-eye' },
-  { label: 'قلم', value: 'pi pi-pencil' },
-  { label: 'فكرة', value: 'pi pi-lightbulb' },
-  { label: 'مستخدمين', value: 'pi pi-users' },
-  { label: 'نجمة', value: 'pi pi-star' },
-  { label: 'ساعة', value: 'pi pi-clock' }
-]
 
 function getStepActivities(stepIdx) {
   return dayStepActivities.value.filter(a => a.step_index === stepIdx)
@@ -539,7 +527,7 @@ async function removeStepActivity(dsaId) {
           </div>
           <div class="form-field">
             <label>الأيقونة</label>
-            <Dropdown v-model="stepForm.icon" :options="iconOptions" optionLabel="label" optionValue="value" class="w-full" />
+            <IconPicker v-model="stepForm.icon" />
           </div>
         </div>
       </div>
