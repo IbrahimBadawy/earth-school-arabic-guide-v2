@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useContentStore } from '@/stores/content'
 import Button from 'primevue/button'
 import MultiSelect from 'primevue/multiselect'
+import Checkbox from 'primevue/checkbox'
 import Tag from 'primevue/tag'
 import { useToast } from 'primevue/usetoast'
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx'
@@ -245,11 +246,21 @@ async function exportToWord() {
         <div class="export-options">
           <div class="option-group">
             <label class="option-label">المستويات</label>
-            <MultiSelect v-model="selectedLevels" :options="levelOptions" optionLabel="label" optionValue="value" placeholder="اختر المستويات" class="w-full" display="chip" />
+            <div class="levels-checkboxes">
+              <div v-for="lvl in levelOptions" :key="lvl.value" class="level-check-item">
+                <Checkbox v-model="selectedLevels" :inputId="'lvl'+lvl.value" :value="lvl.value" />
+                <label :for="'lvl'+lvl.value">{{ lvl.label }}</label>
+              </div>
+            </div>
           </div>
           <div class="option-group">
             <label class="option-label">الأقسام المطلوبة</label>
-            <MultiSelect v-model="selectedSections" :options="sectionOptions" optionLabel="label" optionValue="value" placeholder="اختر الأقسام" class="w-full" display="chip" />
+            <div class="sections-checkboxes">
+              <div v-for="sec in sectionOptions" :key="sec.value" class="section-check-item">
+                <Checkbox v-model="selectedSections" :inputId="sec.value" :value="sec.value" />
+                <label :for="sec.value">{{ sec.label }}</label>
+              </div>
+            </div>
           </div>
           <Button label="تصدير إلى Word" icon="pi pi-file-word" class="export-btn" :loading="exporting" @click="exportToWord" size="large" />
           <Button label="طباعة الصفحة الحالية" icon="pi pi-print" text class="print-btn" @click="window.print()" />
@@ -280,7 +291,12 @@ h2 { font-size: 1.15rem; margin-bottom: 20px; display: flex; align-items: center
 .export-options { display: flex; flex-direction: column; gap: 24px; }
 .option-group { display: flex; flex-direction: column; gap: 8px; }
 .option-label { font-weight: 600; font-size: 0.95rem; }
-.level-option { display: flex; align-items: center; gap: 4px; }
+.levels-checkboxes { display: flex; flex-direction: column; gap: 8px; }
+.level-check-item { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--bg-color); border-radius: 8px; }
+.level-check-item label { font-size: 0.9rem; cursor: pointer; }
+.sections-checkboxes { display: flex; flex-wrap: wrap; gap: 8px; }
+.section-check-item { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: var(--bg-color); border-radius: 8px; white-space: nowrap; }
+.section-check-item label { font-size: 0.85rem; cursor: pointer; }
 .w-full { width: 100%; }
 .export-btn { background: #845EF7 !important; border-color: #845EF7 !important; height: 48px; font-size: 1rem; font-weight: 600; }
 .print-btn { height: 44px; }
