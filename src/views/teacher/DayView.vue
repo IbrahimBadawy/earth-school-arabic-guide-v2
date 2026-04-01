@@ -9,6 +9,7 @@ import Breadcrumb from 'primevue/breadcrumb'
 import Textarea from 'primevue/textarea'
 import InputText from 'primevue/inputtext'
 import Dialog from 'primevue/dialog'
+import Dropdown from 'primevue/dropdown'
 import QuickNav from '@/components/common/QuickNav.vue'
 import { useToast } from 'primevue/usetoast'
 
@@ -34,6 +35,10 @@ const sessionSteps = ref([])
 const activities = ref({})
 const showEditDayDialog = ref(false)
 const editDayForm = ref({})
+const showEditStepDialog = ref(false)
+const editingStepIdx = ref(-1)
+const stepForm = ref({ order: 1, name: '', duration: 8, icon: 'pi pi-star', description: '' })
+const currentPatternId = ref(null)
 
 const weekNumber = computed(() => weekData.value?.week_number || '')
 
@@ -76,13 +81,15 @@ async function loadData() {
   const currentLevelId = Number(route.params.levelId)
   const patterns = await contentStore.fetchSessionPatterns(currentLevelId)
   if (patterns && patterns.length > 0) {
-    // For level 3, use the first pattern by default (alternate between days)
     const dayNum = dayData.value?.day_number || 1
+    let selectedPattern
     if (currentLevelId === 3 && patterns.length > 1) {
-      sessionSteps.value = patterns[dayNum === 1 ? 0 : 1]?.steps || patterns[0]?.steps || []
+      selectedPattern = patterns[dayNum === 1 ? 0 : 1] || patterns[0]
     } else {
-      sessionSteps.value = patterns[0]?.steps || []
+      selectedPattern = patterns[0]
     }
+    sessionSteps.value = selectedPattern?.steps || []
+    currentPatternId.value = selectedPattern?.id || null
   }
 
   // Fetch activities for suggestions
@@ -147,6 +154,70 @@ async function saveDay() {
   }
 }
 
+// ===== Scenario Step CRUD =====
+function openAddStep() {
+  editingStepIdx.value = -1
+  stepForm.value = { order: sessionSteps.value.length + 1, name: '', duration: 8, icon: 'pi pi-star', description: '' }
+  showEditStepDialog.value = true
+}
+
+function openEditStep(step, idx) {
+  editingStepIdx.value = idx
+  stepForm.value = { ...step }
+  showEditStepDialog.value = true
+}
+
+async function saveStep() {
+  const steps = [...sessionSteps.value]
+  if (editingStepIdx.value >= 0) {
+    steps[editingStepIdx.value] = { ...stepForm.value }
+  } else {
+    steps.push({ ...stepForm.value })
+  }
+  // Re-number orders
+  steps.forEach((s, i) => { s.order = i + 1 })
+
+  const { error } = await contentStore.upsertRecord('session_patterns', {
+    id: currentPatternId.value,
+    steps
+  })
+  if (!error) {
+    sessionSteps.value = steps
+    showEditStepDialog.value = false
+    toast.add({ severity: 'success', summary: 'تم', detail: 'تم حفظ الخطوة', life: 3000 })
+  } else {
+    toast.add({ severity: 'error', summary: 'خطأ', detail: error.message, life: 5000 })
+  }
+}
+
+async function deleteStep(idx) {
+  const steps = [...sessionSteps.value]
+  steps.splice(idx, 1)
+  steps.forEach((s, i) => { s.order = i + 1 })
+
+  const { error } = await contentStore.upsertRecord('session_patterns', {
+    id: currentPatternId.value,
+    steps
+  })
+  if (!error) {
+    sessionSteps.value = steps
+    toast.add({ severity: 'success', summary: 'تم', detail: 'تم حذف الخطوة', life: 3000 })
+  }
+}
+
+const iconOptions = [
+  { label: 'كتاب', value: 'pi pi-book' },
+  { label: 'تعليقات', value: 'pi pi-comments' },
+  { label: 'فن', value: 'pi pi-palette' },
+  { label: 'صوت', value: 'pi pi-volume-up' },
+  { label: 'بصري', value: 'pi pi-eye' },
+  { label: 'قلم', value: 'pi pi-pencil' },
+  { label: 'فكرة', value: 'pi pi-lightbulb' },
+  { label: 'مستخدمين', value: 'pi pi-users' },
+  { label: 'نجمة', value: 'pi pi-star' },
+  { label: 'ساعة', value: 'pi pi-clock' }
+]
+
 function getActivitiesForStep(stepName) {
   if (!stepName) return []
   const allActs = Object.values(activities.value).flat()
@@ -205,11 +276,20 @@ function getActivitiesForStep(stepName) {
 
     <!-- Day Scenario Timeline -->
     <div class="custom-card no-hover animate__animated animate__fadeInUp" style="margin-top: 20px;">
-      <h2><i class="pi pi-list-check" :style="{ color: level.color }"></i> سيناريو اليوم (الجدول الزمني)</h2>
+      <div class="section-header-row">
+        <h2><i class="pi pi-list-check" :style="{ color: level.color }"></i> سيناريو اليوم (الجدول الزمني)</h2>
+        <Button v-if="authStore.isAdmin" label="إضافة خطوة" icon="pi pi-plus" size="small" @click="openAddStep" />
+      </div>
 
       <div v-if="sessionSteps.length" class="day-timeline">
         <div v-for="(step, idx) in sessionSteps" :key="idx" class="timeline-item stagger-item" :style="{ animationDelay: `${idx * 0.1}s` }">
-          <span class="time-label">{{ step.duration }} دقيقة</span>
+          <div class="timeline-top-row">
+            <span class="time-label">{{ step.duration }} دقيقة</span>
+            <div v-if="authStore.isAdmin" class="step-actions">
+              <Button icon="pi pi-pencil" text rounded size="small" v-tooltip.top="'تعديل'" @click="openEditStep(step, idx)" />
+              <Button icon="pi pi-trash" text rounded size="small" severity="danger" v-tooltip.top="'حذف'" @click="deleteStep(idx)" />
+            </div>
+          </div>
           <div class="timeline-step-header">
             <span class="timeline-step-num" :style="{ background: level.color }">{{ step.order }}</span>
             <i :class="step.icon" :style="{ color: level.color, fontSize: '1.1rem' }"></i>
@@ -314,6 +394,34 @@ function getActivitiesForStep(stepName) {
         <Button label="حفظ" icon="pi pi-check" @click="saveDay" />
       </template>
     </Dialog>
+
+    <!-- Edit/Add Step Dialog -->
+    <Dialog v-model:visible="showEditStepDialog" :header="editingStepIdx >= 0 ? 'تعديل خطوة' : 'إضافة خطوة جديدة'" :style="{ width: '500px' }" modal>
+      <div class="dialog-form">
+        <div class="form-field">
+          <label>اسم الخطوة</label>
+          <InputText v-model="stepForm.name" class="w-full" placeholder="مثال: قراءة القصة" />
+        </div>
+        <div class="form-field">
+          <label>الوصف</label>
+          <Textarea v-model="stepForm.description" rows="3" class="w-full" placeholder="وصف تفصيلي لما يتم في هذه الخطوة" />
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>المدة (دقيقة)</label>
+            <InputText v-model.number="stepForm.duration" type="number" class="w-full" />
+          </div>
+          <div class="form-field">
+            <label>الأيقونة</label>
+            <Dropdown v-model="stepForm.icon" :options="iconOptions" optionLabel="label" optionValue="value" class="w-full" />
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <Button label="إلغاء" text @click="showEditStepDialog = false" />
+        <Button :label="editingStepIdx >= 0 ? 'حفظ' : 'إضافة'" icon="pi pi-check" @click="saveStep" />
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -324,6 +432,11 @@ function getActivitiesForStep(stepName) {
 .day-header h1 { color: white; font-size: 1.4rem; margin-bottom: 4px; }
 .day-header p { opacity: 0.9; }
 .header-actions { display: flex; gap: 8px; flex-direction: column; }
+.section-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.section-header-row h2 { margin-bottom: 0; }
+.timeline-top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.step-actions { display: flex; gap: 2px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .edit-btn, .complete-btn { background: rgba(255,255,255,0.2) !important; border: 1px solid rgba(255,255,255,0.4) !important; color: white !important; }
 h2 { font-size: 1.15rem; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
 .obj-card { border-right: 4px solid var(--primary-color); }
