@@ -69,7 +69,7 @@ function toggleMenu(event) {
 .app-bar {
   position: fixed;
   top: 0;
-  right: 0;
+  right: var(--sidebar-width);
   left: 0;
   height: var(--appbar-height);
   background: white;
@@ -79,6 +79,7 @@ function toggleMenu(event) {
   justify-content: space-between;
   padding: 0 20px;
   z-index: 900;
+  transition: right 0.3s ease;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
@@ -137,6 +138,9 @@ function toggleMenu(event) {
 }
 
 @media (max-width: 768px) {
+  .app-bar {
+    right: 0;
+  }
   .title-text {
     font-size: 0.9rem;
   }

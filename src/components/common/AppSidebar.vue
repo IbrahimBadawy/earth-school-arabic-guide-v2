@@ -105,7 +105,7 @@ function navigate(path) {
   width: var(--sidebar-width);
   background: white;
   border-left: 1px solid var(--border-color);
-  z-index: 999;
+  z-index: 1000;
   display: flex;
   flex-direction: column;
   transition: transform 0.3s ease;
