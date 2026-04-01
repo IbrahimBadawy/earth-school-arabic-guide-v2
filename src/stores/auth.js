@@ -9,7 +9,8 @@ export const useAuthStore = defineStore('auth', () => {
   const loading = ref(false)
   const assignments = ref([])
 
-  const isAdmin = computed(() => profile.value?.role === 'admin')
+  const isAdmin = computed(() => profile.value?.role === 'admin' || profile.value?.role === 'subject_admin')
+  const isSubjectAdmin = computed(() => profile.value?.role === 'subject_admin')
   const isTeacher = computed(() => profile.value?.role === 'teacher')
   const displayName = computed(() => profile.value?.full_name || user.value?.email || '')
   const permissions = computed(() => profile.value?.permissions || {})
@@ -136,7 +137,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     user, profile, initialized, loading, assignments,
-    isAdmin, isTeacher, displayName, permissions,
+    isAdmin, isSubjectAdmin, isTeacher, displayName, permissions,
     initialize, login, logout, fetchProfile, updateProfile, hasPermission,
     fetchAssignments, getMySubjects, isAssignedTo
   }

@@ -26,7 +26,10 @@ const subjectOptions = computed(() =>
 
 const selectedSubjectId = computed({
   get: () => contentStore.activeSubject?.id,
-  set: (val) => { contentStore.setActiveSubject(val) }
+  set: (val) => {
+    contentStore.setActiveSubject(val)
+    window.location.reload()
+  }
 })
 
 const hasMultipleSubjects = computed(() => contentStore.subjects.length > 1)

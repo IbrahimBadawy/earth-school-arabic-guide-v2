@@ -40,8 +40,14 @@ export const useContentStore = defineStore('content', () => {
     units.value = data || []
     // Auto-select active unit if not set
     if (!activeUnit.value && units.value.length) {
-      const active = units.value.find(u => u.is_active)
-      activeUnit.value = active || units.value[0]
+      const savedUnitId = localStorage.getItem('activeUnitId')
+      const savedUnit = savedUnitId ? units.value.find(u => u.id === savedUnitId) : null
+      if (savedUnit) {
+        activeUnit.value = savedUnit
+      } else {
+        const active = units.value.find(u => u.is_active)
+        activeUnit.value = active || units.value[0]
+      }
     }
     return data || []
   }
@@ -50,6 +56,7 @@ export const useContentStore = defineStore('content', () => {
     const unit = units.value.find(u => u.id === unitId)
     if (unit) {
       activeUnit.value = unit
+      localStorage.setItem('activeUnitId', unitId)
       // Clear cached data so it re-fetches with new unit filter
       listeningGoals.value = []
       progressionItems.value = []
@@ -173,7 +180,13 @@ export const useContentStore = defineStore('content', () => {
     subjects.value = data || []
     // Auto-select active subject if not set
     if (!activeSubject.value && subjects.value.length) {
-      activeSubject.value = subjects.value[0]
+      const savedSubjectId = localStorage.getItem('activeSubjectId')
+      const savedSubject = savedSubjectId ? subjects.value.find(s => s.id === savedSubjectId) : null
+      if (savedSubject) {
+        activeSubject.value = savedSubject
+      } else {
+        activeSubject.value = subjects.value[0]
+      }
     }
     return data || []
   }
@@ -182,6 +195,7 @@ export const useContentStore = defineStore('content', () => {
     const subject = subjects.value.find(s => s.id === subjectId)
     if (subject) {
       activeSubject.value = subject
+      localStorage.setItem('activeSubjectId', subjectId)
       // Clear cached data so it re-fetches with new subject filter
       levelAxes.value = []
       activitiesDB.value = []
@@ -228,7 +242,11 @@ export const useContentStore = defineStore('content', () => {
 
   async function fetchLevelAxes(levelId) {
     let query = supabase.from('level_axes').select('*, axis_objectives(*)').eq('level_id', levelId).order('sort_order')
-    if (activeUnit.value?.id) query = query.eq('unit_id', activeUnit.value.id)
+    if (activeUnit.value?.id) {
+      query = query.or(`unit_id.eq.${activeUnit.value.id},unit_id.is.null`)
+    } else {
+      query = query.is('unit_id', null)
+    }
     if (activeSubject.value?.id) query = query.eq('subject_id', activeSubject.value.id)
     const { data } = await query
     if (data) {
@@ -239,7 +257,6 @@ export const useContentStore = defineStore('content', () => {
 
   async function fetchActivities(levelId) {
     let query = supabase.from('activities').select('*').eq('level_id', levelId).order('category').order('sort_order')
-    if (activeUnit.value?.id) query = query.eq('unit_id', activeUnit.value.id)
     if (activeSubject.value?.id) query = query.eq('subject_id', activeSubject.value.id)
     const { data } = await query
     return data || []
@@ -247,7 +264,6 @@ export const useContentStore = defineStore('content', () => {
 
   async function fetchAssessmentItems(levelId) {
     let query = supabase.from('assessment_items').select('*').eq('level_id', levelId).order('sort_order')
-    if (activeUnit.value?.id) query = query.eq('unit_id', activeUnit.value.id)
     if (activeSubject.value?.id) query = query.eq('subject_id', activeSubject.value.id)
     const { data } = await query
     return data || []
@@ -255,7 +271,6 @@ export const useContentStore = defineStore('content', () => {
 
   async function fetchAllAssessments() {
     let query = supabase.from('assessment_items').select('*').order('level_id').order('sort_order')
-    if (activeUnit.value?.id) query = query.eq('unit_id', activeUnit.value.id)
     if (activeSubject.value?.id) query = query.eq('subject_id', activeSubject.value.id)
     const { data } = await query
     assessmentItems.value = data || []
@@ -398,8 +413,6 @@ export const useContentStore = defineStore('content', () => {
     if (unitFilter) {
       goalsQ = goalsQ.eq('unit_id', unitFilter)
       axesQ = axesQ.eq('unit_id', unitFilter)
-      activitiesQ = activitiesQ.eq('unit_id', unitFilter)
-      assessmentsQ = assessmentsQ.eq('unit_id', unitFilter)
       patternsQ = patternsQ.eq('unit_id', unitFilter)
       progressionQ = progressionQ.eq('unit_id', unitFilter)
       weeksQ = weeksQ.eq('unit_id', unitFilter)
@@ -436,7 +449,7 @@ export const useContentStore = defineStore('content', () => {
 
   async function upsertRecord(table, record) {
     // Auto-set unit_id for tables that support it
-    const unitTables = ['weeks', 'activities', 'assessment_items', 'level_axes', 'session_patterns', 'listening_goals', 'faq_items', 'implementation_tips', 'progression_items']
+    const unitTables = ['weeks', 'level_axes', 'session_patterns', 'listening_goals', 'faq_items', 'implementation_tips', 'progression_items']
     if (unitTables.includes(table) && activeUnit.value?.id && !record.unit_id) {
       record = { ...record, unit_id: activeUnit.value.id }
     }
