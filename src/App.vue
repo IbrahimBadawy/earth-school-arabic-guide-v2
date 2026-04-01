@@ -35,9 +35,9 @@ watch(() => authStore.user, (newUser) => {
   <!-- Login page (no layout) -->
   <router-view v-else-if="isBlankLayout || !authStore.user" />
 
-  <!-- Main app with layout - :key forces remount on navigation -->
+  <!-- Main app with layout -->
   <AppLayout v-else>
-    <router-view :key="route.fullPath" />
+    <router-view />
   </AppLayout>
 </template>
 
