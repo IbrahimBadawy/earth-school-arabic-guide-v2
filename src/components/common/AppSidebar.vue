@@ -59,7 +59,7 @@ function navigate(path) {
   >
     <div class="sidebar-header">
       <div class="school-logo">
-        <span class="logo-icon">🌍</span>
+        <img src="/LOGO.png" alt="مدرسة الأرض" class="sidebar-logo-img" />
         <div class="school-info">
           <h3>مدرسة الأرض</h3>
           <span class="school-subtitle">فقرة اللغة العربية</span>
@@ -125,6 +125,13 @@ function navigate(path) {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.sidebar-logo-img {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  object-fit: cover;
 }
 
 .logo-icon {

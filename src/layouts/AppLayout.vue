@@ -27,7 +27,7 @@ function closeMobileMenu() {
       @close-mobile="closeMobileMenu"
     />
     <div class="main-content" :class="{ 'sidebar-collapsed': !sidebarVisible }">
-      <AppBar @toggle-sidebar="toggleSidebar" />
+      <AppBar @toggle-sidebar="toggleSidebar" :sidebarVisible="sidebarVisible" />
       <div class="page-container">
         <slot />
       </div>

@@ -6,6 +6,7 @@ import Avatar from 'primevue/avatar'
 import Menu from 'primevue/menu'
 import { ref } from 'vue'
 
+const props = defineProps({ sidebarVisible: { type: Boolean, default: true } })
 const emit = defineEmits(['toggle-sidebar'])
 const authStore = useAuthStore()
 const router = useRouter()
@@ -35,7 +36,7 @@ function toggleMenu(event) {
 </script>
 
 <template>
-  <header class="app-bar">
+  <header class="app-bar" :class="{ 'sidebar-hidden': !sidebarVisible }">
     <div class="app-bar-right">
       <Button
         icon="pi pi-bars"
@@ -45,7 +46,7 @@ function toggleMenu(event) {
         @click="emit('toggle-sidebar')"
       />
       <div class="app-bar-title">
-        <span class="title-icon">📚</span>
+        <img src="/LOGO.png" alt="مدرسة الأرض" class="app-logo" />
         <span class="title-text">دليل معلمات اللغة العربية</span>
       </div>
     </div>
@@ -82,6 +83,10 @@ function toggleMenu(event) {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
+.app-bar.sidebar-hidden {
+  right: 0;
+}
+
 .app-bar-right {
   display: flex;
   align-items: center;
@@ -94,8 +99,10 @@ function toggleMenu(event) {
   gap: 8px;
 }
 
-.title-icon {
-  font-size: 1.4rem;
+.app-logo {
+  height: 36px;
+  width: auto;
+  border-radius: 8px;
 }
 
 .title-text {
