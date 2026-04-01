@@ -56,7 +56,7 @@ onMounted(async () => {
     .order('created_at', { ascending: false })
     .limit(10)
   recentComments.value = cmts || []
-})()
+})
 
 const completionPercent = computed(() => {
   if (!stats.value.totalDays) return 0

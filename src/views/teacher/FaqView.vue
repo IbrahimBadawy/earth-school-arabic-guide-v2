@@ -33,7 +33,7 @@ const tipCategories = ['بداية الحصة', 'قراءة القصة', 'الأ
 onMounted(async () => {
   faqs.value = await contentStore.fetchFaqItems() || []
   tips.value = await contentStore.fetchImplementationTips() || []
-})()
+})
 
 const faqsByCategory = computed(() => {
   const grouped = {}
