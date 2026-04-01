@@ -9,5 +9,5 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
   },
-  base: '/earth-school-arabic-guide-v2/'
+  base: './'
 })

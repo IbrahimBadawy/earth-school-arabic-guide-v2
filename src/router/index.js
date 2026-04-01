@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const routes = [
@@ -85,16 +85,11 @@ const routes = [
     name: 'Export',
     component: () => import('@/views/ExportView.vue'),
     meta: { requiresAuth: true }
-  },
-  // Catch-all: redirect unknown routes to home
-  {
-    path: '/:pathMatch(.*)*',
-    redirect: '/'
   }
 ]
 
 const router = createRouter({
-  history: createWebHistory('/earth-school-arabic-guide-v2/'),
+  history: createWebHashHistory(),
   routes,
   scrollBehavior() {
     return { top: 0 }
@@ -106,7 +101,6 @@ router.beforeEach(async (to) => {
 
   if (!authStore.initialized) {
     await authStore.initialize()
-    await new Promise(r => setTimeout(r, 100))
   }
 
   if (to.meta.requiresAuth && !authStore.user) {

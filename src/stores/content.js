@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { supabase } from '@/lib/supabase'
 
 export const useContentStore = defineStore('content', () => {
+
   const weeks = ref([])
   const days = ref([])
   const comments = ref([])
@@ -29,6 +30,7 @@ export const useContentStore = defineStore('content', () => {
   // ===== FETCH FUNCTIONS =====
 
   async function fetchListeningGoals() {
+
     if (listeningGoals.value.length) return listeningGoals.value
     const { data } = await supabase.from('listening_goals').select('*').order('sort_order')
     listeningGoals.value = data || []
@@ -36,6 +38,7 @@ export const useContentStore = defineStore('content', () => {
   }
 
   async function fetchLevelAxes(levelId) {
+
     const { data } = await supabase.from('level_axes').select('*, axis_objectives(*)').eq('level_id', levelId).order('sort_order')
     if (data) {
       data.forEach(a => { if (a.axis_objectives) a.axis_objectives.sort((x, y) => x.sort_order - y.sort_order) })
@@ -44,11 +47,13 @@ export const useContentStore = defineStore('content', () => {
   }
 
   async function fetchActivities(levelId) {
+
     const { data } = await supabase.from('activities').select('*').eq('level_id', levelId).order('category').order('sort_order')
     return data || []
   }
 
   async function fetchAssessmentItems(levelId) {
+
     const { data } = await supabase.from('assessment_items').select('*').eq('level_id', levelId).order('sort_order')
     return data || []
   }
@@ -60,6 +65,7 @@ export const useContentStore = defineStore('content', () => {
   }
 
   async function fetchTeachingTools() {
+
     if (teachingTools.value.length) return teachingTools.value
     const { data } = await supabase.from('teaching_tools').select('*').order('category')
     teachingTools.value = data || []
@@ -67,11 +73,13 @@ export const useContentStore = defineStore('content', () => {
   }
 
   async function fetchSessionPatterns(levelId) {
+
     const { data } = await supabase.from('session_patterns').select('*').eq('level_id', levelId).order('pattern_name')
     return data || []
   }
 
   async function fetchProgressionItems() {
+
     if (progressionItems.value.length) return progressionItems.value
     const { data } = await supabase.from('progression_items').select('*').order('sort_order')
     progressionItems.value = data || []
@@ -79,6 +87,7 @@ export const useContentStore = defineStore('content', () => {
   }
 
   async function fetchFaqItems() {
+
     const { data, error } = await supabase.from('faq_items').select('*').order('sort_order')
     if (error) console.warn('FAQ fetch error:', error.message)
     faqItems.value = data || []
@@ -86,6 +95,7 @@ export const useContentStore = defineStore('content', () => {
   }
 
   async function fetchImplementationTips() {
+
     const { data, error } = await supabase.from('implementation_tips').select('*').order('sort_order')
     if (error) console.warn('Tips fetch error:', error.message)
     implementationTips.value = data || []
@@ -95,16 +105,19 @@ export const useContentStore = defineStore('content', () => {
   // ===== EXISTING FETCH FUNCTIONS =====
 
   async function fetchWeek(weekId) {
+
     const { data } = await supabase.from('weeks').select('*').eq('id', weekId).single()
     return data
   }
 
   async function fetchDay(dayId) {
+
     const { data } = await supabase.from('days').select('*, weeks(level_id, week_number, letter, title)').eq('id', dayId).single()
     return data
   }
 
   async function fetchWeeks(levelId) {
+
     loading.value = true
     const { data } = await supabase.from('weeks').select('*').eq('level_id', levelId).order('week_number')
     weeks.value = data || []
@@ -113,6 +126,7 @@ export const useContentStore = defineStore('content', () => {
   }
 
   async function fetchDays(weekId) {
+
     loading.value = true
     const { data } = await supabase.from('days').select('*, day_activities(*)').eq('week_id', weekId).order('day_number')
     days.value = data || []
@@ -121,6 +135,7 @@ export const useContentStore = defineStore('content', () => {
   }
 
   async function fetchComments(dayId) {
+
     const { data } = await supabase.from('comments').select('*, profiles(full_name, role)').eq('day_id', dayId).order('created_at', { ascending: false })
     comments.value = data || []
     return data
@@ -143,6 +158,7 @@ export const useContentStore = defineStore('content', () => {
 
   // ===== DAY STEP ACTIVITIES =====
   async function fetchDayStepActivities(dayId) {
+
     const { data } = await supabase
       .from('day_step_activities')
       .select('*, activities(id, name, description, activity_type, duration, steps, tools, teacher_tips, differentiation, category)')
@@ -166,6 +182,7 @@ export const useContentStore = defineStore('content', () => {
 
   // ===== BULK EXPORT (single fetch per table) =====
   async function fetchAllForExport() {
+
     const [
       { data: goals }, { data: axes }, { data: activities },
       { data: assessments }, { data: tools }, { data: patterns },

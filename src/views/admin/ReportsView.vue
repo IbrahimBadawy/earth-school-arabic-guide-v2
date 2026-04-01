@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
 import Tag from 'primevue/tag'
 import DataTable from 'primevue/datatable'
@@ -17,7 +17,8 @@ const stats = ref({
 const levelStats = ref([])
 const recentComments = ref([])
 
-onMounted(async () => {
+// Direct execution
+;(async () => {
   // Fetch counts
   const [usersRes, weeksRes, daysRes, commentsRes] = await Promise.all([
     supabase.from('profiles').select('id', { count: 'exact', head: true }),
@@ -55,7 +56,7 @@ onMounted(async () => {
     .order('created_at', { ascending: false })
     .limit(10)
   recentComments.value = cmts || []
-})
+})()
 
 const completionPercent = computed(() => {
   if (!stats.value.totalDays) return 0

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useContentStore } from '@/stores/content'
 import { useAuthStore } from '@/stores/auth'
 import Tag from 'primevue/tag'
@@ -22,7 +22,8 @@ const form = ref({})
 
 const categoryOptions = ['الوعي الصوتي', 'الوعي البصري', 'ما قبل الكتابة', 'القراءة', 'الكتابة', 'اللغويات']
 
-onMounted(async () => { await loadAll() })
+// Direct execution
+;(async () => { await loadAll() })()
 
 async function loadAll() {
   for (const level of levels) {

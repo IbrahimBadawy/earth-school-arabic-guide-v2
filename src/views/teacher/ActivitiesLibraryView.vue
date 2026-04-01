@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useContentStore } from '@/stores/content'
+import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
 import Tag from 'primevue/tag'
 import SelectButton from 'primevue/selectbutton'
@@ -37,19 +38,14 @@ const levelOptions = [
 
 const levelColors = { 1: '#4CAF93', 2: '#FF9F43', 3: '#6C63FF' }
 
-onMounted(async () => {
-  await loadActivities()
-  allTools.value = await contentStore.fetchTeachingTools() || []
-})
-
-async function loadActivities() {
-  const results = []
-  for (let lvl = 1; lvl <= 3; lvl++) {
-    const data = await contentStore.fetchActivities(lvl)
-    results.push(...(data || []))
-  }
-  allActivities.value = results
+// Fetch data immediately (not in onMounted - runs at setup time)
+async function initData() {
+  const { data } = await supabase.from('activities').select('*').order('level_id').order('category').order('sort_order')
+  allActivities.value = data || []
+  const tools = await contentStore.fetchTeachingTools()
+  allTools.value = tools || []
 }
+initData()
 
 const categories = computed(() => {
   const cats = new Set()
@@ -110,7 +106,8 @@ async function saveActivity() {
   if (!error) {
     toast.add({ severity: 'success', summary: 'تم', detail: 'تم حفظ النشاط', life: 3000 })
     showAddDialog.value = false
-    await loadActivities()
+    const { data: refreshed } = await supabase.from('activities').select('*').order('level_id').order('category').order('sort_order')
+    allActivities.value = refreshed || []
   } else {
     toast.add({ severity: 'error', summary: 'خطأ', detail: error.message, life: 5000 })
   }
@@ -132,7 +129,8 @@ async function deleteActivity(id) {
   const { error } = await contentStore.deleteRecord('activities', id)
   if (!error) {
     toast.add({ severity: 'success', summary: 'تم', detail: 'تم حذف النشاط', life: 3000 })
-    await loadActivities()
+    const { data: refreshed } = await supabase.from('activities').select('*').order('level_id').order('category').order('sort_order')
+    allActivities.value = refreshed || []
   }
 }
 </script>

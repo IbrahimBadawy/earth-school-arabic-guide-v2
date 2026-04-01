@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useContentStore } from '@/stores/content'
 import { useAuthStore } from '@/stores/auth'
 import Accordion from 'primevue/accordion'
@@ -29,10 +29,11 @@ const tipForm = ref({ category: '', title: '', content: '', sort_order: 0 })
 const faqCategories = ['إدارة الصف', 'الحروف والقراءة', 'الكتابة', 'التقييم', 'المنهج الإسلامي', 'عام']
 const tipCategories = ['بداية الحصة', 'قراءة القصة', 'الأنشطة', 'التشجيع', 'نهاية الحصة']
 
-onMounted(async () => {
+// Direct execution
+;(async () => {
   faqs.value = await contentStore.fetchFaqItems() || []
   tips.value = await contentStore.fetchImplementationTips() || []
-})
+})()
 
 const faqsByCategory = computed(() => {
   const grouped = {}

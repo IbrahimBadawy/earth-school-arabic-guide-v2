@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useContentStore } from '@/stores/content'
 import { useAuthStore } from '@/stores/auth'
 import DataTable from 'primevue/datatable'
@@ -26,7 +26,8 @@ const editMode = ref(false)
 const goalForm = ref({})
 const objForm = ref({})
 
-onMounted(async () => { await loadAll() })
+// Direct execution
+;(async () => { await loadAll() })()
 
 async function loadAll() {
   const [lg, prog] = await Promise.all([
