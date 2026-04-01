@@ -164,6 +164,35 @@ export const useContentStore = defineStore('content', () => {
     return { error }
   }
 
+  // ===== BULK EXPORT (single fetch per table) =====
+  async function fetchAllForExport() {
+    const [
+      { data: goals }, { data: axes }, { data: activities },
+      { data: assessments }, { data: tools }, { data: patterns },
+      { data: progression }, { data: allWeeks }, { data: allDays },
+      { data: allDayActs }
+    ] = await Promise.all([
+      supabase.from('listening_goals').select('*').order('sort_order'),
+      supabase.from('level_axes').select('*, axis_objectives(*)').order('level_id').order('sort_order'),
+      supabase.from('activities').select('*').order('level_id').order('category').order('sort_order'),
+      supabase.from('assessment_items').select('*').order('level_id').order('sort_order'),
+      supabase.from('teaching_tools').select('*').order('category'),
+      supabase.from('session_patterns').select('*').order('level_id'),
+      supabase.from('progression_items').select('*').order('sort_order'),
+      supabase.from('weeks').select('*').order('level_id').order('week_number'),
+      supabase.from('days').select('*').order('week_id').order('day_number'),
+      supabase.from('day_step_activities').select('*, activities(name, description, activity_type)').order('step_index').order('sort_order')
+    ])
+    // Sort axis objectives
+    ;(axes || []).forEach(a => { if (a.axis_objectives) a.axis_objectives.sort((x, y) => x.sort_order - y.sort_order) })
+    return {
+      goals: goals || [], axes: axes || [], activities: activities || [],
+      assessments: assessments || [], tools: tools || [], patterns: patterns || [],
+      progression: progression || [], weeks: allWeeks || [], days: allDays || [],
+      dayActs: allDayActs || []
+    }
+  }
+
   // ===== CRUD FUNCTIONS (Admin) =====
 
   async function upsertRecord(table, record) {
@@ -192,7 +221,7 @@ export const useContentStore = defineStore('content', () => {
     fetchListeningGoals, fetchLevelAxes, fetchActivities, fetchAssessmentItems, fetchAllAssessments,
     fetchTeachingTools, fetchSessionPatterns, fetchProgressionItems, fetchFaqItems, fetchImplementationTips,
     fetchWeek, fetchDay, fetchWeeks, fetchDays, fetchComments,
-    fetchDayStepActivities, saveDayStepActivity, deleteDayStepActivity,
+    fetchDayStepActivities, saveDayStepActivity, deleteDayStepActivity, fetchAllForExport,
     addComment, markDayComplete, upsertRecord, deleteRecord, getLevelData
   }
 })
