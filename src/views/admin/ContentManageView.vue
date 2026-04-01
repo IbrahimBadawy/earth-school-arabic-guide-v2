@@ -28,7 +28,7 @@ const showLevelDialog = ref(false)
 const editMode = ref(false)
 const selectedLevel = ref(1)
 
-const weekForm = ref({ level_id: 1, week_number: 1, title: '', letter: '', notes: '' })
+const weekForm = ref({ level_id: 1, week_number: 1, title: '', focus_item: '', notes: '' })
 const dayForm = ref({ week_id: null, day_number: 1, title: '', summary: '', objectives: '', teacher_notes: '' })
 const levelForm = ref({ name: '', age_range: '', students_count: 0, color: '#4CAF93', icon: 'pi pi-star', description: '', letters: '' })
 
@@ -55,6 +55,9 @@ async function fetchAll() {
   if (contentStore.activeUnit?.id) {
     query = query.eq('unit_id', contentStore.activeUnit.id)
   }
+  if (contentStore.activeSubject?.id) {
+    query = query.eq('subject_id', contentStore.activeSubject.id)
+  }
   const { data } = await query
   weeks.value = (data || []).map(w => ({
     ...w,
@@ -76,13 +79,13 @@ const stats = computed(() => {
 function openAddWeek() {
   editMode.value = false
   const maxNum = Math.max(0, ...filteredWeeks.value.map(w => w.week_number))
-  weekForm.value = { level_id: selectedLevel.value, week_number: maxNum + 1, title: `الأسبوع ${maxNum + 1}`, letter: '', notes: '' }
+  weekForm.value = { level_id: selectedLevel.value, week_number: maxNum + 1, title: `الأسبوع ${maxNum + 1}`, focus_item: '', notes: '' }
   showWeekDialog.value = true
 }
 
 function openEditWeek(week) {
   editMode.value = true
-  weekForm.value = { id: week.id, level_id: week.level_id, week_number: week.week_number, title: week.title || '', letter: week.letter || '', notes: week.notes || '' }
+  weekForm.value = { id: week.id, level_id: week.level_id, week_number: week.week_number, title: week.title || '', focus_item: week.focus_item || '', notes: week.notes || '' }
   showWeekDialog.value = true
 }
 
@@ -175,9 +178,10 @@ async function generateWeeksForLevel() {
       level_id: selectedLevel.value,
       week_number: w,
       title: `الأسبوع ${w}`,
-      letter: selectedLevel.value === 1 ? (letters[w - 1] || '') : ''
+      focus_item: selectedLevel.value === 1 ? (letters[w - 1] || '') : ''
     }
     if (contentStore.activeUnit?.id) weekData.unit_id = contentStore.activeUnit.id
+    if (contentStore.activeSubject?.id) weekData.subject_id = contentStore.activeSubject.id
     inserts.push(weekData)
   }
   const { data: newWeeks } = await supabase.from('weeks').upsert(inserts, { onConflict: 'level_id,week_number' }).select('id')
@@ -311,7 +315,7 @@ function confirmDeleteLevel(lvl) {
             <span class="week-num" :style="{ background: levelColors[selectedLevel] }">{{ week.week_number }}</span>
             <div>
               <h3>{{ week.title }}</h3>
-              <span v-if="week.letter" class="week-letter-tag">حرف: {{ week.letter }}</span>
+              <span v-if="week.focus_item" class="week-letter-tag">العنصر الأساسي: {{ week.focus_item }}</span>
             </div>
           </div>
           <div class="week-actions">
@@ -356,7 +360,7 @@ function confirmDeleteLevel(lvl) {
       <div class="dialog-form">
         <div class="form-row">
           <div class="form-field"><label>رقم الأسبوع</label><InputText v-model.number="weekForm.week_number" type="number" class="w-full" /></div>
-          <div class="form-field"><label>الحرف (م1 فقط)</label><InputText v-model="weekForm.letter" class="w-full" /></div>
+          <div class="form-field"><label>العنصر الأساسي</label><InputText v-model="weekForm.focus_item" class="w-full" /></div>
         </div>
         <div class="form-field"><label>العنوان</label><InputText v-model="weekForm.title" class="w-full" /></div>
         <div class="form-field"><label>ملاحظات</label><Textarea v-model="weekForm.notes" rows="2" class="w-full" /></div>

@@ -7,6 +7,7 @@ export const useAuthStore = defineStore('auth', () => {
   const profile = ref(null)
   const initialized = ref(false)
   const loading = ref(false)
+  const assignments = ref([])
 
   const isAdmin = computed(() => profile.value?.role === 'admin')
   const isTeacher = computed(() => profile.value?.role === 'teacher')
@@ -19,6 +20,7 @@ export const useAuthStore = defineStore('auth', () => {
       if (session?.user) {
         user.value = session.user
         await fetchProfile()
+        await fetchAssignments()
       }
     } catch (err) {
       console.error('Auth init error:', err)
@@ -30,9 +32,11 @@ export const useAuthStore = defineStore('auth', () => {
       if (event === 'SIGNED_IN' && session?.user) {
         user.value = session.user
         await fetchProfile()
+        await fetchAssignments()
       } else if (event === 'SIGNED_OUT') {
         user.value = null
         profile.value = null
+        assignments.value = []
       }
     })
   }
@@ -50,6 +54,38 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function fetchAssignments() {
+    if (!user.value) return
+    const { data, error } = await supabase
+      .from('teacher_assignments')
+      .select('*, subjects(id, name, color, icon)')
+      .eq('teacher_id', user.value.id)
+    if (!error && data) {
+      assignments.value = data
+    }
+  }
+
+  function getMySubjects() {
+    if (isAdmin.value) return [] // admin has access to all
+    const subjectMap = {}
+    assignments.value.forEach(a => {
+      if (a.subjects) {
+        subjectMap[a.subject_id] = a.subjects
+      }
+    })
+    return Object.values(subjectMap)
+  }
+
+  function isAssignedTo(subjectId, levelId) {
+    if (isAdmin.value) return true
+    return assignments.value.some(a => {
+      if (subjectId && levelId) return a.subject_id === subjectId && a.level_id === levelId
+      if (subjectId) return a.subject_id === subjectId
+      if (levelId) return a.level_id === levelId
+      return false
+    })
+  }
+
   async function login(email, password) {
     loading.value = true
     try {
@@ -57,6 +93,7 @@ export const useAuthStore = defineStore('auth', () => {
       if (error) throw error
       user.value = data.user
       await fetchProfile()
+      await fetchAssignments()
       return { success: true }
     } catch (error) {
       return { success: false, error: error.message }
@@ -69,6 +106,7 @@ export const useAuthStore = defineStore('auth', () => {
     await supabase.auth.signOut()
     user.value = null
     profile.value = null
+    assignments.value = []
   }
 
   async function updateProfile(updates) {
@@ -97,8 +135,9 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   return {
-    user, profile, initialized, loading,
+    user, profile, initialized, loading, assignments,
     isAdmin, isTeacher, displayName, permissions,
-    initialize, login, logout, fetchProfile, updateProfile, hasPermission
+    initialize, login, logout, fetchProfile, updateProfile, hasPermission,
+    fetchAssignments, getMySubjects, isAssignedTo
   }
 })

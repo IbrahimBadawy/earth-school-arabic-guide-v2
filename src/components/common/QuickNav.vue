@@ -71,7 +71,7 @@ function selectDay(day) {
                 :style="{ '--bc': levels.find(l=>l.id===selectedLevel)?.color || '#4CAF93' }"
                 @click="selectWeek(w)">
           {{ w.week_number }}
-          <span v-if="w.letter" class="week-letter">{{ w.letter }}</span>
+          <span v-if="w.focus_item" class="week-letter">{{ w.focus_item }}</span>
         </button>
       </div>
     </div>

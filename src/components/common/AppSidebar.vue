@@ -3,6 +3,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useContentStore } from '@/stores/content'
 import { computed, onMounted } from 'vue'
+import Dropdown from 'primevue/dropdown'
 
 defineProps({
   visible: Boolean,
@@ -14,7 +15,21 @@ const route = useRoute()
 const authStore = useAuthStore()
 const contentStore = useContentStore()
 
-onMounted(() => { contentStore.fetchLevels() })
+onMounted(() => {
+  contentStore.fetchLevels()
+  contentStore.fetchSubjects()
+})
+
+const subjectOptions = computed(() =>
+  contentStore.subjects.map(s => ({ label: s.name, value: s.id, color: s.color, icon: s.icon }))
+)
+
+const selectedSubjectId = computed({
+  get: () => contentStore.activeSubject?.id,
+  set: (val) => { contentStore.setActiveSubject(val) }
+})
+
+const hasMultipleSubjects = computed(() => contentStore.subjects.length > 1)
 
 const menuItems = computed(() => {
   const items = [
@@ -41,6 +56,7 @@ const menuItems = computed(() => {
     items.push(
       { type: 'divider', label: 'الإدارة' },
       { label: 'إدارة الوحدات', icon: 'pi pi-folder', to: '/admin/units', color: '#845EF7' },
+      { label: 'إدارة المحتويات', icon: 'pi pi-th-large', to: '/admin/subjects', color: '#339AF0' },
       { label: 'إدارة المستخدمين', icon: 'pi pi-users', to: '/admin/users', color: '#E64980' },
       { label: 'إدارة المحتوى', icon: 'pi pi-cog', to: '/admin/content', color: '#FF9F43' },
       { label: 'التقارير', icon: 'pi pi-chart-bar', to: '/admin/reports', color: '#20C997' }
@@ -73,6 +89,19 @@ function navigate(path) {
           <span class="school-subtitle">فقرة اللغة العربية</span>
         </div>
       </div>
+    </div>
+
+    <!-- Subject Selector -->
+    <div v-if="hasMultipleSubjects" class="sidebar-subject-selector">
+      <label><i class="pi pi-th-large"></i> المحتوى:</label>
+      <Dropdown
+        v-model="selectedSubjectId"
+        :options="subjectOptions"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="اختر المحتوى"
+        class="subject-dropdown"
+      />
     </div>
 
     <nav class="sidebar-nav">
@@ -162,6 +191,27 @@ function navigate(path) {
 .school-subtitle {
   font-size: 0.8rem;
   color: var(--text-secondary);
+}
+
+.sidebar-subject-selector {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidebar-subject-selector label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.subject-dropdown {
+  width: 100%;
 }
 
 .sidebar-nav {

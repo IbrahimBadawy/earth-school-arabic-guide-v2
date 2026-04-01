@@ -382,7 +382,7 @@ async function deletePatternStep(patternId, idx) {
         <div class="week-number-badge" :style="{ background: level.color }">{{ week.week_number }}</div>
         <div class="week-info">
           <h4>{{ week.title || `الأسبوع ${week.week_number}` }}</h4>
-          <p v-if="week.letter && levelId === 1">حرف: <strong class="week-letter">{{ week.letter }}</strong></p>
+          <p v-if="week.focus_item">العنصر الأساسي: <strong class="week-letter">{{ week.focus_item }}</strong></p>
         </div>
         <div class="week-status">
           <i class="pi pi-chevron-left" :style="{ color: level.color }"></i>

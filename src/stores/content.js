@@ -13,6 +13,10 @@ export const useContentStore = defineStore('content', () => {
   const units = ref([])
   const activeUnit = ref(null)
 
+  // Subjects
+  const subjects = ref([])
+  const activeSubject = ref(null)
+
   // Cached DB data
   const listeningGoals = ref([])
   const levelAxes = ref([])
@@ -161,6 +165,40 @@ export const useContentStore = defineStore('content', () => {
     return { data: newUnit, error: null }
   }
 
+  // ===== SUBJECTS FUNCTIONS =====
+
+  async function fetchSubjects() {
+    const { data, error } = await supabase.from('subjects').select('*').order('sort_order')
+    if (error) console.warn('Subjects fetch error:', error.message)
+    subjects.value = data || []
+    // Auto-select active subject if not set
+    if (!activeSubject.value && subjects.value.length) {
+      activeSubject.value = subjects.value[0]
+    }
+    return data || []
+  }
+
+  async function setActiveSubject(subjectId) {
+    const subject = subjects.value.find(s => s.id === subjectId)
+    if (subject) {
+      activeSubject.value = subject
+      // Clear cached data so it re-fetches with new subject filter
+      levelAxes.value = []
+      activitiesDB.value = []
+      assessmentItems.value = []
+      sessionPatterns.value = []
+    }
+  }
+
+  async function fetchTeacherAssignments(teacherId) {
+    const { data, error } = await supabase
+      .from('teacher_assignments')
+      .select('*, subjects(id, name, color, icon)')
+      .eq('teacher_id', teacherId)
+    if (error) console.warn('Assignments fetch error:', error.message)
+    return data || []
+  }
+
   // ===== LEVELS =====
 
   async function fetchLevels() {
@@ -191,6 +229,7 @@ export const useContentStore = defineStore('content', () => {
   async function fetchLevelAxes(levelId) {
     let query = supabase.from('level_axes').select('*, axis_objectives(*)').eq('level_id', levelId).order('sort_order')
     if (activeUnit.value?.id) query = query.eq('unit_id', activeUnit.value.id)
+    if (activeSubject.value?.id) query = query.eq('subject_id', activeSubject.value.id)
     const { data } = await query
     if (data) {
       data.forEach(a => { if (a.axis_objectives) a.axis_objectives.sort((x, y) => x.sort_order - y.sort_order) })
@@ -201,6 +240,7 @@ export const useContentStore = defineStore('content', () => {
   async function fetchActivities(levelId) {
     let query = supabase.from('activities').select('*').eq('level_id', levelId).order('category').order('sort_order')
     if (activeUnit.value?.id) query = query.eq('unit_id', activeUnit.value.id)
+    if (activeSubject.value?.id) query = query.eq('subject_id', activeSubject.value.id)
     const { data } = await query
     return data || []
   }
@@ -208,6 +248,7 @@ export const useContentStore = defineStore('content', () => {
   async function fetchAssessmentItems(levelId) {
     let query = supabase.from('assessment_items').select('*').eq('level_id', levelId).order('sort_order')
     if (activeUnit.value?.id) query = query.eq('unit_id', activeUnit.value.id)
+    if (activeSubject.value?.id) query = query.eq('subject_id', activeSubject.value.id)
     const { data } = await query
     return data || []
   }
@@ -215,6 +256,7 @@ export const useContentStore = defineStore('content', () => {
   async function fetchAllAssessments() {
     let query = supabase.from('assessment_items').select('*').order('level_id').order('sort_order')
     if (activeUnit.value?.id) query = query.eq('unit_id', activeUnit.value.id)
+    if (activeSubject.value?.id) query = query.eq('subject_id', activeSubject.value.id)
     const { data } = await query
     assessmentItems.value = data || []
     return data
@@ -230,6 +272,7 @@ export const useContentStore = defineStore('content', () => {
   async function fetchSessionPatterns(levelId) {
     let query = supabase.from('session_patterns').select('*').eq('level_id', levelId).order('pattern_name')
     if (activeUnit.value?.id) query = query.eq('unit_id', activeUnit.value.id)
+    if (activeSubject.value?.id) query = query.eq('subject_id', activeSubject.value.id)
     const { data } = await query
     return data || []
   }
@@ -269,7 +312,7 @@ export const useContentStore = defineStore('content', () => {
   }
 
   async function fetchDay(dayId) {
-    const { data } = await supabase.from('days').select('*, weeks(level_id, week_number, letter, title)').eq('id', dayId).single()
+    const { data } = await supabase.from('days').select('*, weeks(level_id, week_number, focus_item, title)').eq('id', dayId).single()
     return data
   }
 
@@ -277,6 +320,7 @@ export const useContentStore = defineStore('content', () => {
     loading.value = true
     let query = supabase.from('weeks').select('*').eq('level_id', levelId).order('week_number')
     if (activeUnit.value?.id) query = query.eq('unit_id', activeUnit.value.id)
+    if (activeSubject.value?.id) query = query.eq('subject_id', activeSubject.value.id)
     const { data } = await query
     weeks.value = data || []
     loading.value = false
@@ -338,6 +382,7 @@ export const useContentStore = defineStore('content', () => {
   // ===== BULK EXPORT (single fetch per table) =====
   async function fetchAllForExport() {
     const unitFilter = activeUnit.value?.id
+    const subjectFilter = activeSubject.value?.id
 
     let goalsQ = supabase.from('listening_goals').select('*').order('sort_order')
     let axesQ = supabase.from('level_axes').select('*, axis_objectives(*)').order('level_id').order('sort_order')
@@ -358,6 +403,14 @@ export const useContentStore = defineStore('content', () => {
       patternsQ = patternsQ.eq('unit_id', unitFilter)
       progressionQ = progressionQ.eq('unit_id', unitFilter)
       weeksQ = weeksQ.eq('unit_id', unitFilter)
+    }
+
+    if (subjectFilter) {
+      axesQ = axesQ.eq('subject_id', subjectFilter)
+      activitiesQ = activitiesQ.eq('subject_id', subjectFilter)
+      assessmentsQ = assessmentsQ.eq('subject_id', subjectFilter)
+      patternsQ = patternsQ.eq('subject_id', subjectFilter)
+      weeksQ = weeksQ.eq('subject_id', subjectFilter)
     }
 
     const [
@@ -387,6 +440,11 @@ export const useContentStore = defineStore('content', () => {
     if (unitTables.includes(table) && activeUnit.value?.id && !record.unit_id) {
       record = { ...record, unit_id: activeUnit.value.id }
     }
+    // Auto-set subject_id for tables that support it
+    const subjectTables = ['weeks', 'activities', 'assessment_items', 'level_axes', 'session_patterns']
+    if (subjectTables.includes(table) && activeSubject.value?.id && !record.subject_id) {
+      record = { ...record, subject_id: activeSubject.value.id }
+    }
     const { data, error } = record.id
       ? await supabase.from(table).update(record).eq('id', record.id).select().single()
       : await supabase.from(table).insert(record).select().single()
@@ -407,10 +465,12 @@ export const useContentStore = defineStore('content', () => {
   return {
     weeks, days, comments, loading,
     units, activeUnit,
+    subjects, activeSubject,
     listeningGoals, levelAxes, activitiesDB, assessmentItems, teachingTools,
     sessionPatterns, progressionItems, faqItems, implementationTips,
     levelsData, levelsLoaded, fetchLevels, reloadLevels,
     fetchUnits, setActiveUnit, cloneUnit,
+    fetchSubjects, setActiveSubject, fetchTeacherAssignments,
     fetchListeningGoals, fetchLevelAxes, fetchActivities, fetchAssessmentItems, fetchAllAssessments,
     fetchTeachingTools, fetchSessionPatterns, fetchProgressionItems, fetchFaqItems, fetchImplementationTips,
     fetchWeek, fetchDay, fetchWeeks, fetchDays, fetchComments,

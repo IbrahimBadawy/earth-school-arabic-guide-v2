@@ -162,7 +162,7 @@ async function exportToWord() {
         if (lvlWeeks.length) {
           sections.push(h2('السيناريو اليومي التفصيلي'))
           for (const week of lvlWeeks) {
-            sections.push(mkp(`━━━ ${week.title}${week.letter ? ' (حرف: ' + week.letter + ')' : ''} ━━━`, { bold: true, size: 22, before: 200 }))
+            sections.push(mkp(`━━━ ${week.title}${week.focus_item ? ' (العنصر الأساسي: ' + week.focus_item + ')' : ''} ━━━`, { bold: true, size: 22, before: 200 }))
             const weekDays = db.days.filter(d => d.week_id === week.id)
             for (const day of weekDays) {
               sections.push(mkp(`▸ ${day.title || 'اليوم ' + day.day_number}`, { bold: true, before: 100 }))

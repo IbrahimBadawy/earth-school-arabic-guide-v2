@@ -66,7 +66,7 @@ const breadcrumbItems = computed(() => [
 const breadcrumbHome = { icon: 'pi pi-home', command: () => router.push('/') }
 
 const currentLetter = computed(() => {
-  if (levelId.value === 1 && weekData.value?.letter) return weekData.value.letter
+  if (weekData.value?.focus_item) return weekData.value.focus_item
   return ''
 })
 
@@ -396,7 +396,7 @@ async function removeStepActivity(dsaId) {
           <Tag v-if="dayCompleted" severity="success" value="مكتمل" class="completed-tag" />
           <h1>{{ level.name }} - {{ weekData?.title || 'الأسبوع ' + weekNumber }}</h1>
           <p>{{ dayData?.title || 'سيناريو اليوم' }} - 45 دقيقة</p>
-          <p v-if="currentLetter">حرف اليوم: <strong style="font-size: 1.5rem">{{ currentLetter }}</strong></p>
+          <p v-if="currentLetter">العنصر الأساسي: <strong style="font-size: 1.5rem">{{ currentLetter }}</strong></p>
         </div>
         <div class="header-actions">
           <Button v-if="authStore.isAdmin" icon="pi pi-pencil" label="تعديل اليوم" class="edit-btn" @click="openEditDay" />

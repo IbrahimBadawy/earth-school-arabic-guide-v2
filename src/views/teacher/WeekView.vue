@@ -44,8 +44,8 @@ function navigateToDay(dayId) {
 }
 
 const currentLetter = computed(() => {
-  if (levelId.value === 1 && weekData.value?.letter) {
-    return weekData.value.letter
+  if (weekData.value?.focus_item) {
+    return weekData.value.focus_item
   }
   return ''
 })
@@ -69,7 +69,7 @@ const sessionPattern = computed(() => {
         <div class="week-number-big" :style="{ background: level.color }">{{ weekNumber }}</div>
         <div>
           <h1>{{ weekTitle }} - {{ level.name }}</h1>
-          <p v-if="currentLetter">حرف الأسبوع: <strong class="current-letter">{{ currentLetter }}</strong></p>
+          <p v-if="currentLetter">العنصر الأساسي: <strong class="current-letter">{{ currentLetter }}</strong></p>
           <p>حصتان في الأسبوع - كل حصة 45 دقيقة</p>
         </div>
       </div>
@@ -126,7 +126,7 @@ const sessionPattern = computed(() => {
           </div>
           <div v-if="currentLetter" class="day-detail-item">
             <i class="pi pi-bookmark"></i>
-            <span>حرف: {{ currentLetter }}</span>
+            <span>العنصر الأساسي: {{ currentLetter }}</span>
           </div>
         </div>
 

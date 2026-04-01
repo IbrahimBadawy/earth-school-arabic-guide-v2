@@ -7,6 +7,7 @@ import Button from 'primevue/button'
 import Dropdown from 'primevue/dropdown'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
+import Tag from 'primevue/tag'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -20,12 +21,20 @@ const selectedUnitId = computed({
   set: (val) => { contentStore.setActiveUnit(val); reloadData() }
 })
 
+const subjectOptions = computed(() => contentStore.subjects.map(s => ({ label: s.name, value: s.id })))
+const selectedSubjectId = computed({
+  get: () => contentStore.activeSubject?.id,
+  set: (val) => { contentStore.setActiveSubject(val) }
+})
+const hasMultipleSubjects = computed(() => contentStore.subjects.length > 1)
+
 async function reloadData() {
   progression.value = await contentStore.fetchProgressionItems() || []
 }
 
 onMounted(async () => {
   await contentStore.fetchUnits()
+  await contentStore.fetchSubjects()
   await contentStore.fetchLevels()
   progression.value = await contentStore.fetchProgressionItems() || []
 })
@@ -37,17 +46,30 @@ function navigateToLevel(levelId) {
 
 <template>
   <div class="dashboard">
-    <!-- Unit Selector -->
-    <div v-if="unitOptions.length > 1" class="unit-selector-bar animate__animated animate__fadeIn">
-      <label><i class="pi pi-folder"></i> الوحدة التعليمية:</label>
-      <Dropdown
-        v-model="selectedUnitId"
-        :options="unitOptions"
-        optionLabel="label"
-        optionValue="value"
-        placeholder="اختر الوحدة"
-        class="unit-dropdown"
-      />
+    <!-- Unit & Subject Selector -->
+    <div v-if="unitOptions.length > 1 || hasMultipleSubjects" class="unit-selector-bar animate__animated animate__fadeIn">
+      <div v-if="unitOptions.length > 1" class="selector-group">
+        <label><i class="pi pi-folder"></i> الوحدة التعليمية:</label>
+        <Dropdown
+          v-model="selectedUnitId"
+          :options="unitOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="اختر الوحدة"
+          class="unit-dropdown"
+        />
+      </div>
+      <div v-if="hasMultipleSubjects" class="selector-group">
+        <label><i class="pi pi-th-large"></i> المحتوى:</label>
+        <Dropdown
+          v-model="selectedSubjectId"
+          :options="subjectOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="اختر المحتوى"
+          class="unit-dropdown"
+        />
+      </div>
     </div>
 
     <!-- Welcome -->
@@ -417,6 +439,12 @@ function navigateToLevel(levelId) {
   background: white;
   border-radius: 12px;
   border: 1px solid var(--border-color);
+}
+
+.selector-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .unit-selector-bar label {

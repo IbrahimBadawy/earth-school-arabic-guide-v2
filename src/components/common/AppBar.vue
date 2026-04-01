@@ -56,6 +56,10 @@ function toggleMenu(event) {
           <i class="pi pi-folder"></i>
           {{ contentStore.activeUnit.name }}
         </span>
+        <span v-if="contentStore.activeSubject" class="active-subject-badge" :style="{ background: contentStore.activeSubject.color + '20', color: contentStore.activeSubject.color }">
+          <i :class="contentStore.activeSubject.icon"></i>
+          {{ contentStore.activeSubject.name }}
+        </span>
       </div>
     </div>
     <div class="app-bar-left">
@@ -133,6 +137,21 @@ function toggleMenu(event) {
 }
 
 .active-unit-badge i {
+  font-size: 0.75rem;
+}
+
+.active-subject-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.active-subject-badge i {
   font-size: 0.75rem;
 }
 
