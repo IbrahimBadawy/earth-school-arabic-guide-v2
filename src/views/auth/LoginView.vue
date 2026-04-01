@@ -42,7 +42,7 @@ async function handleLogin() {
 
     <div class="login-container animate__animated animate__fadeInUp">
       <div class="login-header">
-        <div class="login-logo">🌍</div>
+        <img src="/LOGO.png" alt="مدرسة الأرض" class="login-logo-img" />
         <h1>مدرسة الأرض</h1>
         <p>دليل معلمات اللغة العربية</p>
       </div>
@@ -172,8 +172,11 @@ async function handleLogin() {
   margin-bottom: 36px;
 }
 
-.login-logo {
-  font-size: 3.5rem;
+.login-logo-img {
+  width: 90px;
+  height: 90px;
+  border-radius: 20px;
+  object-fit: cover;
   margin-bottom: 12px;
   animation: bounce 2s ease-in-out infinite;
 }
