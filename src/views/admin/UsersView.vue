@@ -34,7 +34,8 @@ const formData = ref({
 
 const roleOptions = [
   { label: 'معلمة', value: 'teacher' },
-  { label: 'مدير', value: 'admin' }
+  { label: 'مدير محتوى', value: 'subject_admin' },
+  { label: 'مدير النظام', value: 'admin' }
 ]
 
 const levelOptions = [
@@ -189,8 +190,8 @@ function confirmDelete(user) {
         <Column field="email" header="البريد الإلكتروني" sortable />
         <Column field="role" header="الدور" sortable>
           <template #body="{ data }">
-            <Tag :value="data.role === 'admin' ? 'مدير' : 'معلمة'"
-                 :severity="data.role === 'admin' ? 'warn' : 'info'" />
+            <Tag :value="data.role === 'admin' ? 'مدير النظام' : data.role === 'subject_admin' ? 'مدير محتوى' : 'معلمة'"
+                 :severity="data.role === 'admin' ? 'warn' : data.role === 'subject_admin' ? 'info' : 'secondary'" />
           </template>
         </Column>
         <Column field="permissions" header="الصلاحيات">

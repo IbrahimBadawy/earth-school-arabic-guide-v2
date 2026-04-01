@@ -56,14 +56,20 @@ const menuItems = computed(() => {
   )
 
   if (authStore.isAdmin) {
+    items.push({ type: 'divider', label: 'الإدارة' })
+    // Subject admin + super admin: content management
     items.push(
-      { type: 'divider', label: 'الإدارة' },
-      { label: 'إدارة الوحدات', icon: 'pi pi-folder', to: '/admin/units', color: '#845EF7' },
       { label: 'إدارة المحتويات', icon: 'pi pi-th-large', to: '/admin/subjects', color: '#339AF0' },
-      { label: 'إدارة المستخدمين', icon: 'pi pi-users', to: '/admin/users', color: '#E64980' },
-      { label: 'إدارة المحتوى', icon: 'pi pi-cog', to: '/admin/content', color: '#FF9F43' },
+      { label: 'إدارة الأسابيع والأيام', icon: 'pi pi-cog', to: '/admin/content', color: '#FF9F43' },
       { label: 'التقارير', icon: 'pi pi-chart-bar', to: '/admin/reports', color: '#20C997' }
     )
+    // Super admin only: system management
+    if (authStore.isSuperAdmin) {
+      items.push(
+        { label: 'إدارة الوحدات', icon: 'pi pi-folder', to: '/admin/units', color: '#845EF7' },
+        { label: 'إدارة المستخدمين', icon: 'pi pi-users', to: '/admin/users', color: '#E64980' }
+      )
+    }
   }
 
   return items
@@ -128,9 +134,9 @@ function navigate(path) {
     </nav>
 
     <div class="sidebar-footer">
-      <div class="role-badge" :class="authStore.isAdmin ? 'admin' : 'teacher'">
-        <i :class="authStore.isAdmin ? 'pi pi-shield' : 'pi pi-user'"></i>
-        <span>{{ authStore.isAdmin ? 'مدير النظام' : 'معلمة' }}</span>
+      <div class="role-badge" :class="authStore.isSuperAdmin ? 'admin' : authStore.isSubjectAdmin ? 'subject-admin' : 'teacher'">
+        <i :class="authStore.isSuperAdmin ? 'pi pi-shield' : authStore.isSubjectAdmin ? 'pi pi-key' : 'pi pi-user'"></i>
+        <span>{{ authStore.isSuperAdmin ? 'مدير النظام' : authStore.isSubjectAdmin ? 'مدير محتوى' : 'معلمة' }}</span>
       </div>
     </div>
   </aside>
@@ -296,6 +302,11 @@ function navigate(path) {
   border-radius: 10px;
   font-size: 0.85rem;
   font-weight: 600;
+}
+
+.role-badge.subject-admin {
+  background: #E8F0FE;
+  color: #1565C0;
 }
 
 .role-badge.admin {

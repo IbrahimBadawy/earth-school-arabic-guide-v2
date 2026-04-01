@@ -9,8 +9,9 @@ export const useAuthStore = defineStore('auth', () => {
   const loading = ref(false)
   const assignments = ref([])
 
-  const isAdmin = computed(() => profile.value?.role === 'admin' || profile.value?.role === 'subject_admin')
+  const isSuperAdmin = computed(() => profile.value?.role === 'admin')
   const isSubjectAdmin = computed(() => profile.value?.role === 'subject_admin')
+  const isAdmin = computed(() => isSuperAdmin.value || isSubjectAdmin.value)
   const isTeacher = computed(() => profile.value?.role === 'teacher')
   const displayName = computed(() => profile.value?.full_name || user.value?.email || '')
   const permissions = computed(() => profile.value?.permissions || {})
@@ -78,13 +79,28 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function isAssignedTo(subjectId, levelId) {
-    if (isAdmin.value) return true
+    if (isSuperAdmin.value) return true
     return assignments.value.some(a => {
       if (subjectId && levelId) return a.subject_id === subjectId && a.level_id === levelId
       if (subjectId) return a.subject_id === subjectId
       if (levelId) return a.level_id === levelId
       return false
     })
+  }
+
+  // Can edit content in a specific subject?
+  // Super admin: always. Subject admin: only assigned subjects. Teacher: never.
+  function canEditSubject(subjectId) {
+    if (isSuperAdmin.value) return true
+    if (isSubjectAdmin.value) {
+      return assignments.value.some(a => a.subject_id === subjectId)
+    }
+    return false
+  }
+
+  // Can manage system-level things (users, units, etc)?
+  function canManageSystem() {
+    return isSuperAdmin.value
   }
 
   async function login(email, password) {
@@ -137,8 +153,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     user, profile, initialized, loading, assignments,
-    isAdmin, isSubjectAdmin, isTeacher, displayName, permissions,
+    isSuperAdmin, isAdmin, isSubjectAdmin, isTeacher, displayName, permissions,
     initialize, login, logout, fetchProfile, updateProfile, hasPermission,
-    fetchAssignments, getMySubjects, isAssignedTo
+    fetchAssignments, getMySubjects, isAssignedTo, canEditSubject, canManageSystem
   }
 })

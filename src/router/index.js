@@ -66,13 +66,13 @@ const routes = [
     path: '/admin/users',
     name: 'AdminUsers',
     component: () => import('@/views/admin/UsersView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true }
+    meta: { requiresAuth: true, requiresSuperAdmin: true }
   },
   {
     path: '/admin/units',
     name: 'AdminUnits',
     component: () => import('@/views/admin/UnitsManageView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true }
+    meta: { requiresAuth: true, requiresSuperAdmin: true }
   },
   {
     path: '/admin/content',
@@ -119,7 +119,11 @@ router.beforeEach(async (to) => {
     return { name: 'Login' }
   }
 
-  if (to.meta.requiresAdmin && authStore.profile?.role !== 'admin') {
+  if (to.meta.requiresSuperAdmin && !authStore.isSuperAdmin) {
+    return { name: 'Dashboard' }
+  }
+
+  if (to.meta.requiresAdmin && !authStore.isAdmin) {
     return { name: 'Dashboard' }
   }
 
