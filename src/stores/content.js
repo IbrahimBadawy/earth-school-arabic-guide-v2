@@ -141,6 +141,29 @@ export const useContentStore = defineStore('content', () => {
     return { error }
   }
 
+  // ===== DAY STEP ACTIVITIES =====
+  async function fetchDayStepActivities(dayId) {
+    const { data } = await supabase
+      .from('day_step_activities')
+      .select('*, activities(id, name, description, activity_type, duration, steps, tools, teacher_tips, differentiation, category)')
+      .eq('day_id', dayId)
+      .order('step_index')
+      .order('sort_order')
+    return data || []
+  }
+
+  async function saveDayStepActivity(record) {
+    const { data, error } = record.id
+      ? await supabase.from('day_step_activities').update(record).eq('id', record.id).select().single()
+      : await supabase.from('day_step_activities').insert(record).select().single()
+    return { data, error }
+  }
+
+  async function deleteDayStepActivity(id) {
+    const { error } = await supabase.from('day_step_activities').delete().eq('id', id)
+    return { error }
+  }
+
   // ===== CRUD FUNCTIONS (Admin) =====
 
   async function upsertRecord(table, record) {
@@ -169,6 +192,7 @@ export const useContentStore = defineStore('content', () => {
     fetchListeningGoals, fetchLevelAxes, fetchActivities, fetchAssessmentItems, fetchAllAssessments,
     fetchTeachingTools, fetchSessionPatterns, fetchProgressionItems, fetchFaqItems, fetchImplementationTips,
     fetchWeek, fetchDay, fetchWeeks, fetchDays, fetchComments,
+    fetchDayStepActivities, saveDayStepActivity, deleteDayStepActivity,
     addComment, markDayComplete, upsertRecord, deleteRecord, getLevelData
   }
 })

@@ -33,6 +33,13 @@ const dayData = ref(null)
 const weekData = ref(null)
 const sessionSteps = ref([])
 const activities = ref({})
+const allActivitiesList = ref([])
+const dayStepActivities = ref([])
+const showAssignDialog = ref(false)
+const assignStepIdx = ref(-1)
+const assignMode = ref('library') // 'library' or 'custom'
+const selectedActivityId = ref(null)
+const customActivityForm = ref({ custom_name: '', custom_description: '', custom_steps: '', custom_tools: '', custom_tips: '', custom_duration: 8 })
 const showEditDayDialog = ref(false)
 const editDayForm = ref({})
 const showEditStepDialog = ref(false)
@@ -92,14 +99,18 @@ async function loadData() {
     currentPatternId.value = selectedPattern?.id || null
   }
 
-  // Fetch activities for suggestions
+  // Fetch activities library for this level
   const acts = await contentStore.fetchActivities(currentLevelId)
+  allActivitiesList.value = acts || []
   const grouped = {}
   ;(acts || []).forEach(a => {
     if (!grouped[a.category]) grouped[a.category] = []
     grouped[a.category].push(a)
   })
   activities.value = grouped
+
+  // Fetch assigned day-specific activities
+  dayStepActivities.value = await contentStore.fetchDayStepActivities(currentDayId)
 
   // Fetch comments
   await contentStore.fetchComments(currentDayId)
@@ -218,17 +229,75 @@ const iconOptions = [
   { label: 'ساعة', value: 'pi pi-clock' }
 ]
 
-function getActivitiesForStep(stepName) {
-  if (!stepName) return []
-  const allActs = Object.values(activities.value).flat()
-  // Match step name to relevant activities
-  if (stepName.includes('صوتي')) return allActs.filter(a => a.category === 'الوعي الصوتي').slice(0, 2)
-  if (stepName.includes('بصري')) return allActs.filter(a => a.category === 'الوعي البصري' || a.category === 'القراءة').slice(0, 2)
-  if (stepName.includes('فني') || stepName.includes('خطوط')) return allActs.filter(a => a.category === 'ما قبل الكتابة' || a.category === 'الكتابة').slice(0, 2)
-  if (stepName.includes('كتابة') || stepName.includes('إبداعية')) return allActs.filter(a => a.category === 'الكتابة').slice(0, 2)
-  if (stepName.includes('دمج')) return allActs.filter(a => a.category === 'القراءة').slice(0, 2)
-  if (stepName.includes('لغوي')) return allActs.filter(a => a.category === 'اللغويات' || a.category === 'القراءة').slice(0, 2)
-  return []
+function getStepActivities(stepIdx) {
+  return dayStepActivities.value.filter(a => a.step_index === stepIdx)
+}
+
+function getActivityDisplay(dsa) {
+  // If linked to library activity, use its data; otherwise use custom fields
+  if (dsa.activities) {
+    return {
+      name: dsa.custom_name || dsa.activities.name,
+      description: dsa.custom_description || dsa.activities.description,
+      steps: dsa.custom_steps?.length ? dsa.custom_steps : dsa.activities.steps,
+      tools: dsa.custom_tools?.length ? dsa.custom_tools : dsa.activities.tools,
+      tips: dsa.custom_tips?.length ? dsa.custom_tips : dsa.activities.teacher_tips,
+      duration: dsa.custom_duration || dsa.activities.duration,
+      type: dsa.activities.activity_type,
+      isLibrary: true
+    }
+  }
+  return {
+    name: dsa.custom_name || 'نشاط مخصص',
+    description: dsa.custom_description || '',
+    steps: dsa.custom_steps || [],
+    tools: dsa.custom_tools || [],
+    tips: dsa.custom_tips || [],
+    duration: dsa.custom_duration || 0,
+    type: 'مخصص',
+    isLibrary: false
+  }
+}
+
+function openAssignActivity(stepIdx) {
+  assignStepIdx.value = stepIdx
+  assignMode.value = 'library'
+  selectedActivityId.value = null
+  customActivityForm.value = { custom_name: '', custom_description: '', custom_steps: '', custom_tools: '', custom_tips: '', custom_duration: 8 }
+  showAssignDialog.value = true
+}
+
+async function assignActivity() {
+  const currentDayId = route.params.dayId
+  let payload = { day_id: currentDayId, step_index: assignStepIdx.value, sort_order: getStepActivities(assignStepIdx.value).length }
+
+  if (assignMode.value === 'library' && selectedActivityId.value) {
+    payload.activity_id = selectedActivityId.value
+  } else {
+    payload.custom_name = customActivityForm.value.custom_name
+    payload.custom_description = customActivityForm.value.custom_description
+    payload.custom_steps = customActivityForm.value.custom_steps ? customActivityForm.value.custom_steps.split('\n').filter(s => s.trim()) : []
+    payload.custom_tools = customActivityForm.value.custom_tools ? customActivityForm.value.custom_tools.split('،').map(t => t.trim()).filter(t => t) : []
+    payload.custom_tips = customActivityForm.value.custom_tips ? customActivityForm.value.custom_tips.split('\n').filter(t => t.trim()) : []
+    payload.custom_duration = customActivityForm.value.custom_duration
+  }
+
+  const { error } = await contentStore.saveDayStepActivity(payload)
+  if (!error) {
+    toast.add({ severity: 'success', summary: 'تم', detail: 'تم إضافة النشاط', life: 3000 })
+    showAssignDialog.value = false
+    dayStepActivities.value = await contentStore.fetchDayStepActivities(currentDayId)
+  } else {
+    toast.add({ severity: 'error', summary: 'خطأ', detail: error.message, life: 5000 })
+  }
+}
+
+async function removeStepActivity(dsaId) {
+  const { error } = await contentStore.deleteDayStepActivity(dsaId)
+  if (!error) {
+    toast.add({ severity: 'success', summary: 'تم', detail: 'تم إزالة النشاط', life: 3000 })
+    dayStepActivities.value = await contentStore.fetchDayStepActivities(route.params.dayId)
+  }
 }
 </script>
 
@@ -298,26 +367,31 @@ function getActivitiesForStep(stepName) {
 
           <p v-if="step.description" class="step-description">{{ step.description }}</p>
 
-          <!-- Suggested Activities for this step -->
-          <div v-if="getActivitiesForStep(step.name).length" class="timeline-step-details">
-            <div class="detail-box">
-              <p class="detail-title"><strong>الأنشطة المقترحة:</strong></p>
-              <div class="suggested-activities">
-                <div v-for="act in getActivitiesForStep(step.name)" :key="act.id" class="mini-activity">
-                  <div class="mini-act-header">
-                    <strong>{{ act.name }}</strong>
-                    <Tag :value="act.activity_type" size="small" :style="{ background: level.color + '15', color: level.color }" />
+          <!-- Assigned Activities for this step -->
+          <div class="timeline-step-details">
+            <div v-if="getStepActivities(idx).length" class="assigned-activities">
+              <div v-for="dsa in getStepActivities(idx)" :key="dsa.id" class="assigned-act-card">
+                <div class="assigned-act-header">
+                  <div>
+                    <strong>{{ getActivityDisplay(dsa).name }}</strong>
+                    <Tag :value="getActivityDisplay(dsa).type" size="small" :style="{ background: level.color + '15', color: level.color }" />
+                    <Tag v-if="getActivityDisplay(dsa).isLibrary" value="من المكتبة" size="small" severity="info" />
                   </div>
-                  <p>{{ act.description }}</p>
-                  <div v-if="act.steps?.length" class="mini-steps">
-                    <span v-for="(s, si) in act.steps.slice(0, 3)" :key="si" class="mini-step">{{ s }}</span>
-                  </div>
-                  <div v-if="act.tools?.length" class="mini-tools">
-                    <span v-for="tool in act.tools" :key="tool" class="tool-chip"><i class="pi pi-wrench"></i> {{ tool }}</span>
-                  </div>
+                  <Button v-if="authStore.isAdmin" icon="pi pi-times" text rounded size="small" severity="danger" v-tooltip.top="'إزالة'" @click="removeStepActivity(dsa.id)" />
+                </div>
+                <p v-if="getActivityDisplay(dsa).description">{{ getActivityDisplay(dsa).description }}</p>
+                <div v-if="getActivityDisplay(dsa).steps?.length" class="mini-steps-list">
+                  <ol><li v-for="(s, si) in getActivityDisplay(dsa).steps" :key="si">{{ s }}</li></ol>
+                </div>
+                <div v-if="getActivityDisplay(dsa).tools?.length" class="mini-tools">
+                  <span v-for="tool in getActivityDisplay(dsa).tools" :key="tool" class="tool-chip"><i class="pi pi-wrench"></i> {{ tool }}</span>
+                </div>
+                <div v-if="getActivityDisplay(dsa).tips?.length" class="mini-tips">
+                  <span v-for="(t, ti) in getActivityDisplay(dsa).tips" :key="ti" class="mini-tip">💡 {{ t }}</span>
                 </div>
               </div>
             </div>
+            <Button v-if="authStore.isAdmin" label="إضافة نشاط لهذه الخطوة" icon="pi pi-plus" text size="small" :style="{ color: level.color }" @click="openAssignActivity(idx)" class="add-step-act-btn" />
           </div>
         </div>
       </div>
@@ -395,6 +469,58 @@ function getActivitiesForStep(stepName) {
       </template>
     </Dialog>
 
+    <!-- Assign Activity to Step Dialog -->
+    <Dialog v-model:visible="showAssignDialog" header="إضافة نشاط للخطوة" :style="{ width: '600px' }" modal>
+      <div class="dialog-form">
+        <div class="assign-mode-toggle">
+          <Button :label="'اختيار من المكتبة'" :outlined="assignMode !== 'library'" @click="assignMode = 'library'" />
+          <Button :label="'نشاط مخصص'" :outlined="assignMode !== 'custom'" @click="assignMode = 'custom'" />
+        </div>
+
+        <!-- Library mode -->
+        <div v-if="assignMode === 'library'" class="library-picker">
+          <Dropdown
+            v-model="selectedActivityId"
+            :options="allActivitiesList"
+            optionLabel="name"
+            optionValue="id"
+            placeholder="اختر نشاط من المكتبة"
+            class="w-full"
+            filter
+            filterPlaceholder="ابحث..."
+          >
+            <template #option="{ option }">
+              <div class="lib-option">
+                <strong>{{ option.name }}</strong>
+                <span class="lib-opt-meta">{{ option.category }} - {{ option.duration }} د</span>
+              </div>
+            </template>
+          </Dropdown>
+          <div v-if="selectedActivityId" class="preview-selected">
+            <p class="preview-label">معاينة النشاط المختار:</p>
+            <div class="preview-card">
+              <strong>{{ allActivitiesList.find(a => a.id === selectedActivityId)?.name }}</strong>
+              <p>{{ allActivitiesList.find(a => a.id === selectedActivityId)?.description }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Custom mode -->
+        <div v-else class="custom-form">
+          <div class="form-field"><label>اسم النشاط</label><InputText v-model="customActivityForm.custom_name" class="w-full" /></div>
+          <div class="form-field"><label>الوصف</label><Textarea v-model="customActivityForm.custom_description" rows="2" class="w-full" /></div>
+          <div class="form-field"><label>المدة (دقيقة)</label><InputText v-model.number="customActivityForm.custom_duration" type="number" class="w-full" /></div>
+          <div class="form-field"><label>الخطوات (كل خطوة في سطر)</label><Textarea v-model="customActivityForm.custom_steps" rows="4" class="w-full" /></div>
+          <div class="form-field"><label>الأدوات (مفصولة بفاصلة ،)</label><InputText v-model="customActivityForm.custom_tools" class="w-full" /></div>
+          <div class="form-field"><label>نصائح (كل نصيحة في سطر)</label><Textarea v-model="customActivityForm.custom_tips" rows="3" class="w-full" /></div>
+        </div>
+      </div>
+      <template #footer>
+        <Button label="إلغاء" text @click="showAssignDialog = false" />
+        <Button label="إضافة" icon="pi pi-check" @click="assignActivity" :disabled="assignMode === 'library' && !selectedActivityId" />
+      </template>
+    </Dialog>
+
     <!-- Edit/Add Step Dialog -->
     <Dialog v-model:visible="showEditStepDialog" :header="editingStepIdx >= 0 ? 'تعديل خطوة' : 'إضافة خطوة جديدة'" :style="{ width: '500px' }" modal>
       <div class="dialog-form">
@@ -437,6 +563,26 @@ function getActivitiesForStep(stepName) {
 .timeline-top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
 .step-actions { display: flex; gap: 2px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.assigned-activities { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
+.assigned-act-card { padding: 12px; background: white; border-radius: 10px; border: 1px solid var(--border-color); border-right: 3px solid var(--primary-color); }
+.assigned-act-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+.assigned-act-header > div { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.assigned-act-card p { font-size: 0.83rem; color: var(--text-secondary); margin: 4px 0 8px; line-height: 1.6; }
+.mini-steps-list ol { padding-right: 18px; margin: 0 0 6px; }
+.mini-steps-list li { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.7; }
+.mini-tips { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+.mini-tip { font-size: 0.78rem; color: var(--text-muted); }
+.add-step-act-btn { margin-top: 4px; }
+.assign-mode-toggle { display: flex; gap: 8px; margin-bottom: 16px; }
+.library-picker { display: flex; flex-direction: column; gap: 12px; }
+.lib-option { display: flex; flex-direction: column; }
+.lib-opt-meta { font-size: 0.78rem; color: var(--text-muted); }
+.preview-selected { margin-top: 8px; }
+.preview-label { font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
+.preview-card { padding: 10px; background: var(--bg-color); border-radius: 8px; }
+.preview-card strong { font-size: 0.9rem; }
+.preview-card p { font-size: 0.82rem; color: var(--text-secondary); margin: 4px 0 0; }
+.custom-form { display: flex; flex-direction: column; gap: 12px; }
 .edit-btn, .complete-btn { background: rgba(255,255,255,0.2) !important; border: 1px solid rgba(255,255,255,0.4) !important; color: white !important; }
 h2 { font-size: 1.15rem; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
 .obj-card { border-right: 4px solid var(--primary-color); }
