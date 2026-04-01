@@ -1,7 +1,8 @@
 <script setup>
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { computed } from 'vue'
+import { useContentStore } from '@/stores/content'
+import { computed, onMounted } from 'vue'
 
 defineProps({
   visible: Boolean,
@@ -11,14 +12,20 @@ const emit = defineEmits(['close-mobile'])
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const contentStore = useContentStore()
+
+onMounted(() => { contentStore.fetchLevels() })
 
 const menuItems = computed(() => {
   const items = [
     { label: 'الرئيسية', icon: 'pi pi-home', to: '/', color: 'var(--primary-color)' },
     { type: 'divider', label: 'المستويات' },
-    { label: 'المستوى الأول (3-4 سنوات)', icon: 'pi pi-star', to: '/level/1', color: 'var(--level1-color)' },
-    { label: 'المستوى الثاني (4-5 سنوات)', icon: 'pi pi-star-fill', to: '/level/2', color: 'var(--level2-color)' },
-    { label: 'المستوى الثالث (5-6 سنوات)', icon: 'pi pi-trophy', to: '/level/3', color: 'var(--level3-color)' },
+  ]
+  // Dynamic levels from DB
+  ;(contentStore.levelsData || []).forEach(lvl => {
+    items.push({ label: `${lvl.name} (${lvl.age_range})`, icon: lvl.icon, to: `/level/${lvl.id}`, color: lvl.color })
+  })
+  items.push(
     { type: 'divider', label: 'الدليل' },
     { label: 'الأهداف العامة والتفصيلية', icon: 'pi pi-flag', to: '/objectives', color: '#339AF0' },
     { label: 'أدوات التقييم', icon: 'pi pi-check-circle', to: '/assessment', color: '#51CF66' },
@@ -27,8 +34,8 @@ const menuItems = computed(() => {
     { type: 'divider', label: 'المساعدة' },
     { label: 'الأسئلة الشائعة ونصائح', icon: 'pi pi-question-circle', to: '/faq', color: '#20C997' },
     { type: 'divider', label: 'التصدير' },
-    { label: 'تصدير وتقارير', icon: 'pi pi-file-export', to: '/export', color: '#845EF7' },
-  ]
+    { label: 'تصدير وتقارير', icon: 'pi pi-file-export', to: '/export', color: '#845EF7' }
+  )
 
   if (authStore.isAdmin) {
     items.push(

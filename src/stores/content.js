@@ -20,12 +20,23 @@ export const useContentStore = defineStore('content', () => {
   const faqItems = ref([])
   const implementationTips = ref([])
 
-  // Static level metadata (UI only - colors, icons)
-  const levelsData = [
-    { id: 1, name: 'المستوى الأول', age_range: '3-4 سنوات', students_count: 12, color: '#4CAF93', icon: 'pi pi-star', description: 'الوعي الصوتي والبصري وما قبل الكتابة', letters: ['ا', 'ب', 'ح', 'د', 'ر', 'س', 'ش', 'ع', 'ف', 'ك', 'ل', 'م', 'ن'] },
-    { id: 2, name: 'المستوى الثاني', age_range: '4-5 سنوات', students_count: 6, color: '#FF9F43', icon: 'pi pi-star-fill', description: 'القراءة والكتابة المبدئية - مقسمين 3 أطفال من المستوى الأول و3 ممارسين' },
-    { id: 3, name: 'المستوى الثالث', age_range: '5-6 سنوات', students_count: 5, color: '#6C63FF', icon: 'pi pi-trophy', description: 'القراءة والكتابة المتقدمة - مقسمين 3 أطفال من المستوى الثاني وطفلين ممارسين' }
-  ]
+  // Levels from DB (dynamic)
+  const levelsData = ref([])
+  const levelsLoaded = ref(false)
+
+  async function fetchLevels() {
+    if (levelsLoaded.value && levelsData.value.length) return levelsData.value
+    const { data } = await supabase.from('levels').select('*').order('sort_order')
+    levelsData.value = data || []
+    levelsLoaded.value = true
+    return data || []
+  }
+
+  // Force refresh levels
+  async function reloadLevels() {
+    levelsLoaded.value = false
+    return await fetchLevels()
+  }
 
   // ===== FETCH FUNCTIONS =====
 
@@ -227,14 +238,14 @@ export const useContentStore = defineStore('content', () => {
   // ===== HELPERS =====
 
   function getLevelData(levelId) {
-    return levelsData.find(l => l.id === Number(levelId))
+    return levelsData.value.find(l => l.id === Number(levelId))
   }
 
   return {
     weeks, days, comments, loading,
     listeningGoals, levelAxes, activitiesDB, assessmentItems, teachingTools,
     sessionPatterns, progressionItems, faqItems, implementationTips,
-    levelsData,
+    levelsData, levelsLoaded, fetchLevels, reloadLevels,
     fetchListeningGoals, fetchLevelAxes, fetchActivities, fetchAssessmentItems, fetchAllAssessments,
     fetchTeachingTools, fetchSessionPatterns, fetchProgressionItems, fetchFaqItems, fetchImplementationTips,
     fetchWeek, fetchDay, fetchWeeks, fetchDays, fetchComments,

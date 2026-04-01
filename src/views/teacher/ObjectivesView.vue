@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useContentStore } from '@/stores/content'
 import { useAuthStore } from '@/stores/auth'
 import DataTable from 'primevue/datatable'
@@ -16,7 +16,7 @@ import { useToast } from 'primevue/usetoast'
 const contentStore = useContentStore()
 const authStore = useAuthStore()
 const toast = useToast()
-const levels = contentStore.levelsData
+const levels = computed(() => contentStore.levelsData)
 const listeningGoals = ref([])
 const progression = ref([])
 const levelAxesMap = ref({})

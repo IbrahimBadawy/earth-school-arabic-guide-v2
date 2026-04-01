@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useContentStore } from '@/stores/content'
@@ -11,11 +11,11 @@ const router = useRouter()
 const authStore = useAuthStore()
 const contentStore = useContentStore()
 
-const levels = contentStore.levelsData
+const levels = computed(() => contentStore.levelsData)
 const progression = ref([])
 
-// Direct execution
 onMounted(async () => {
+  await contentStore.fetchLevels()
   progression.value = await contentStore.fetchProgressionItems() || []
 })
 

@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { supabase } from '@/lib/supabase'
+import { useContentStore } from '@/stores/content'
+import IconPicker from '@/components/common/IconPicker.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
@@ -18,24 +20,30 @@ const toast = useToast()
 const confirm = useConfirm()
 
 const weeks = ref([])
+const contentStore = useContentStore()
 const loading = ref(false)
 const showWeekDialog = ref(false)
 const showDayDialog = ref(false)
+const showLevelDialog = ref(false)
 const editMode = ref(false)
 const selectedLevel = ref(1)
 
 const weekForm = ref({ level_id: 1, week_number: 1, title: '', letter: '', notes: '' })
 const dayForm = ref({ week_id: null, day_number: 1, title: '', summary: '', objectives: '', teacher_notes: '' })
+const levelForm = ref({ name: '', age_range: '', students_count: 0, color: '#4CAF93', icon: 'pi pi-star', description: '', letters: '' })
 
-const levelOptions = [
-  { label: 'المستوى الأول (3-4 سنوات)', value: 1 },
-  { label: 'المستوى الثاني (4-5 سنوات)', value: 2 },
-  { label: 'المستوى الثالث (5-6 سنوات)', value: 3 }
-]
+const levels = computed(() => contentStore.levelsData || [])
+const levelColors = computed(() => {
+  const map = {}
+  levels.value.forEach(l => { map[l.id] = l.color })
+  return map
+})
 
-const levelColors = { 1: '#4CAF93', 2: '#FF9F43', 3: '#6C63FF' }
-
-onMounted(() => fetchAll())
+onMounted(async () => {
+  await contentStore.fetchLevels()
+  if (levels.value.length) selectedLevel.value = levels.value[0].id
+  fetchAll()
+})
 
 async function fetchAll() {
   loading.value = true
@@ -176,6 +184,61 @@ async function generateWeeksForLevel() {
   toast.add({ severity: 'success', summary: 'تم', detail: 'تم إنشاء 12 أسبوع + 24 يوم', life: 3000 })
   await fetchAll()
 }
+
+// Level CRUD
+function openAddLevel() {
+  editMode.value = false
+  levelForm.value = { name: '', age_range: '', students_count: 0, color: '#4CAF93', icon: 'pi pi-star', description: '', letters: '', sort_order: levels.value.length + 1 }
+  showLevelDialog.value = true
+}
+
+function openEditLevel(lvl) {
+  editMode.value = true
+  levelForm.value = { ...lvl, letters: (lvl.letters || []).join('، ') }
+  showLevelDialog.value = true
+}
+
+async function saveLevel() {
+  const payload = { ...levelForm.value, letters: levelForm.value.letters ? levelForm.value.letters.split('،').map(l => l.trim()).filter(l => l) : [] }
+  if (editMode.value && payload.id) {
+    await supabase.from('levels').update(payload).eq('id', payload.id)
+  } else {
+    delete payload.id
+    await supabase.from('levels').insert(payload)
+  }
+  toast.add({ severity: 'success', summary: 'تم', life: 3000 })
+  showLevelDialog.value = false
+  await contentStore.reloadLevels()
+}
+
+function confirmDeleteLevel(lvl) {
+  confirm.require({
+    message: `حذف "${lvl.name}" سيحذف جميع الأسابيع والأيام والأنشطة والتقييمات المرتبطة. هذا إجراء لا يمكن التراجع عنه!`,
+    header: 'تأكيد حذف المستوى',
+    icon: 'pi pi-exclamation-triangle',
+    acceptLabel: 'حذف نهائي',
+    rejectLabel: 'إلغاء',
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      // Delete related data first
+      const { data: lvlWeeks } = await supabase.from('weeks').select('id').eq('level_id', lvl.id)
+      if (lvlWeeks?.length) {
+        const weekIds = lvlWeeks.map(w => w.id)
+        await supabase.from('days').delete().in('week_id', weekIds)
+        await supabase.from('weeks').delete().eq('level_id', lvl.id)
+      }
+      await supabase.from('activities').delete().eq('level_id', lvl.id)
+      await supabase.from('assessment_items').delete().eq('level_id', lvl.id)
+      await supabase.from('level_axes').delete().eq('level_id', lvl.id)
+      await supabase.from('session_patterns').delete().eq('level_id', lvl.id)
+      await supabase.from('levels').delete().eq('id', lvl.id)
+      toast.add({ severity: 'success', summary: 'تم حذف المستوى', life: 3000 })
+      await contentStore.reloadLevels()
+      if (selectedLevel.value === lvl.id && levels.value.length) selectedLevel.value = levels.value[0].id
+      await fetchAll()
+    }
+  })
+}
 </script>
 
 <template>
@@ -193,11 +256,27 @@ async function generateWeeksForLevel() {
       </div>
     </div>
 
-    <!-- Level Tabs -->
-    <div class="level-tabs">
-      <button v-for="lvl in levelOptions" :key="lvl.value" class="level-tab" :class="{ active: selectedLevel === lvl.value }" :style="{ '--tc': levelColors[lvl.value] }" @click="selectedLevel = lvl.value">
-        {{ lvl.label }}
-      </button>
+    <!-- Levels Management -->
+    <div class="levels-section custom-card no-hover" style="margin-bottom:20px">
+      <div class="section-header-row">
+        <h2><i class="pi pi-th-large" style="color: #845EF7"></i> المستويات</h2>
+        <Button label="إضافة مستوى" icon="pi pi-plus" size="small" @click="openAddLevel" />
+      </div>
+      <div class="level-tabs">
+        <div v-for="lvl in levels" :key="lvl.id" class="level-tab-card" :class="{ active: selectedLevel === lvl.id }" :style="{ '--tc': lvl.color }" @click="selectedLevel = lvl.id">
+          <div class="ltc-content">
+            <i :class="lvl.icon" :style="{ color: lvl.color }"></i>
+            <div>
+              <strong>{{ lvl.name }}</strong>
+              <span>{{ lvl.age_range }} - {{ lvl.students_count }} طفل</span>
+            </div>
+          </div>
+          <div class="ltc-actions" @click.stop>
+            <Button icon="pi pi-pencil" text rounded size="small" @click="openEditLevel(lvl)" />
+            <Button icon="pi pi-trash" text rounded size="small" severity="danger" @click="confirmDeleteLevel(lvl)" />
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Stats -->
@@ -287,14 +366,45 @@ async function generateWeeksForLevel() {
         <Button :label="editMode ? 'حفظ' : 'إضافة'" icon="pi pi-check" @click="saveDay" />
       </template>
     </Dialog>
+
+    <!-- Level Dialog -->
+    <Dialog v-model:visible="showLevelDialog" :header="editMode ? 'تعديل مستوى' : 'إضافة مستوى جديد'" :style="{ width: '550px' }" modal>
+      <div class="dialog-form">
+        <div class="form-field"><label>اسم المستوى</label><InputText v-model="levelForm.name" class="w-full" placeholder="مثال: المستوى الأول" /></div>
+        <div class="form-row">
+          <div class="form-field"><label>الفئة العمرية</label><InputText v-model="levelForm.age_range" class="w-full" placeholder="3-4 سنوات" /></div>
+          <div class="form-field"><label>عدد الأطفال</label><InputText v-model.number="levelForm.students_count" type="number" class="w-full" /></div>
+        </div>
+        <div class="form-field"><label>الوصف</label><Textarea v-model="levelForm.description" rows="3" class="w-full" /></div>
+        <div class="form-row">
+          <div class="form-field"><label>اللون</label><InputText v-model="levelForm.color" type="color" class="w-full" style="height:40px" /></div>
+          <div class="form-field"><label>الأيقونة</label><IconPicker v-model="levelForm.icon" /></div>
+        </div>
+        <div class="form-field"><label>الحروف (مفصولة بفاصلة ، - للمستوى الأول فقط)</label><InputText v-model="levelForm.letters" class="w-full" placeholder="ا، ب، ح، د، ر..." /></div>
+      </div>
+      <template #footer>
+        <Button label="إلغاء" text @click="showLevelDialog = false" />
+        <Button :label="editMode ? 'حفظ' : 'إضافة'" icon="pi pi-check" @click="saveLevel" />
+      </template>
+    </Dialog>
   </div>
 </template>
 
 <style scoped>
+.section-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.section-header-row h2 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 1.1rem; }
 .header-row { display: flex; justify-content: space-between; align-items: flex-start; }
 .header-btns { display: flex; gap: 8px; }
-.level-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
-.level-tab { border: 2px solid var(--border-color); background: white; border-radius: 10px; padding: 8px 20px; font-family: var(--font-family); font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.15s; color: var(--text-secondary); }
+.level-tabs { display: flex; flex-wrap: wrap; gap: 10px; }
+.level-tab-card { border: 2px solid var(--border-color); background: white; border-radius: 12px; padding: 10px 16px; cursor: pointer; transition: all 0.15s; display: flex; justify-content: space-between; align-items: center; gap: 10px; min-width: 200px; flex: 1; }
+.level-tab-card:hover { border-color: var(--tc); }
+.level-tab-card.active { border-color: var(--tc); background: color-mix(in srgb, var(--tc) 8%, white); }
+.ltc-content { display: flex; align-items: center; gap: 10px; }
+.ltc-content i { font-size: 1.2rem; }
+.ltc-content strong { display: block; font-size: 0.9rem; }
+.ltc-content span { font-size: 0.75rem; color: var(--text-muted); }
+.ltc-actions { display: flex; gap: 2px; opacity: 0; transition: opacity 0.2s; }
+.level-tab-card:hover .ltc-actions { opacity: 1; }
 .level-tab:hover { border-color: var(--tc); color: var(--tc); }
 .level-tab.active { background: var(--tc); color: white; border-color: var(--tc); }
 .level-stats { display: flex; gap: 8px; margin-bottom: 20px; }
