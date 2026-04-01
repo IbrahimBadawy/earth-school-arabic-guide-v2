@@ -32,6 +32,14 @@ const showActivityDialog = ref(false)
 const editingActivity = ref(null)
 const expandedActivity = ref(null)
 const editMode = ref(false)
+const showAxisDialog = ref(false)
+const axisForm = ref({})
+const showObjDialog = ref(false)
+const objForm = ref({})
+const showPatternStepDialog = ref(false)
+const patternStepForm = ref({})
+const editingPatternId = ref(null)
+const editingStepIdx = ref(-1)
 
 watch(() => route.params.levelId, async () => {
   const lid = Number(route.params.levelId)
@@ -124,6 +132,64 @@ async function deleteActivity(id) {
     await reloadActivities()
   }
 }
+
+// ===== Axes CRUD =====
+async function reloadAxes() { axes.value = await contentStore.fetchLevelAxes(levelId.value) || [] }
+function openAddAxis() { editMode.value = false; axisForm.value = { level_id: levelId.value, name: '', description: '', sort_order: axes.value.length + 1 }; showAxisDialog.value = true }
+function openEditAxis(axis) { editMode.value = true; axisForm.value = { ...axis }; delete axisForm.value.axis_objectives; showAxisDialog.value = true }
+async function saveAxis() {
+  const { error } = await contentStore.upsertRecord('level_axes', axisForm.value)
+  if (!error) { showAxisDialog.value = false; await reloadAxes(); toast.add({ severity: 'success', summary: 'تم', life: 3000 }) }
+}
+async function deleteAxis(id) { await contentStore.deleteRecord('level_axes', id); await reloadAxes(); toast.add({ severity: 'success', summary: 'تم حذف المحور', life: 3000 }) }
+
+// Objective CRUD (under axis)
+function openAddObj(axisId) { editMode.value = false; objForm.value = { axis_id: axisId, objective_text: '', sort_order: 0 }; showObjDialog.value = true }
+function openEditObj(obj) { editMode.value = true; objForm.value = { ...obj }; showObjDialog.value = true }
+async function saveObj() {
+  const { error } = await contentStore.upsertRecord('axis_objectives', objForm.value)
+  if (!error) { showObjDialog.value = false; await reloadAxes(); toast.add({ severity: 'success', summary: 'تم', life: 3000 }) }
+}
+async function deleteObj(id) { await contentStore.deleteRecord('axis_objectives', id); await reloadAxes() }
+
+// ===== Session Pattern Steps CRUD =====
+function openAddPatternStep(patternId) {
+  editingPatternId.value = patternId
+  editingStepIdx.value = -1
+  const pat = patterns.value.find(p => p.id === patternId)
+  patternStepForm.value = { order: (pat?.steps?.length || 0) + 1, name: '', duration: 8, icon: 'pi pi-star', description: '' }
+  showPatternStepDialog.value = true
+}
+function openEditPatternStep(patternId, step, idx) {
+  editingPatternId.value = patternId
+  editingStepIdx.value = idx
+  patternStepForm.value = { ...step }
+  showPatternStepDialog.value = true
+}
+async function savePatternStep() {
+  const pat = patterns.value.find(p => p.id === editingPatternId.value)
+  if (!pat) return
+  const steps = [...(pat.steps || [])]
+  if (editingStepIdx.value >= 0) { steps[editingStepIdx.value] = { ...patternStepForm.value } }
+  else { steps.push({ ...patternStepForm.value }) }
+  steps.forEach((s, i) => { s.order = i + 1 })
+  const { error } = await contentStore.upsertRecord('session_patterns', { id: pat.id, steps })
+  if (!error) {
+    pat.steps = steps
+    showPatternStepDialog.value = false
+    toast.add({ severity: 'success', summary: 'تم', life: 3000 })
+  }
+}
+async function deletePatternStep(patternId, idx) {
+  const pat = patterns.value.find(p => p.id === patternId)
+  if (!pat) return
+  const steps = [...(pat.steps || [])]
+  steps.splice(idx, 1)
+  steps.forEach((s, i) => { s.order = i + 1 })
+  await contentStore.upsertRecord('session_patterns', { id: pat.id, steps })
+  pat.steps = steps
+  toast.add({ severity: 'success', summary: 'تم حذف الخطوة', life: 3000 })
+}
 </script>
 
 <template>
@@ -157,23 +223,34 @@ async function deleteActivity(id) {
 
     <!-- Axes / Objectives from DB -->
     <div class="custom-card no-hover animate__animated animate__fadeInUp" style="animation-delay: 0.1s">
-      <h2><i class="pi pi-flag" :style="{ color: level.color }"></i> المحاور الأساسية والأهداف</h2>
+      <div class="section-header-row">
+        <h2><i class="pi pi-flag" :style="{ color: level.color }"></i> المحاور الأساسية والأهداف</h2>
+        <Button v-if="authStore.isAdmin" label="إضافة محور" icon="pi pi-plus" size="small" @click="openAddAxis" />
+      </div>
       <Accordion v-if="axes.length">
         <AccordionPanel v-for="axis in axes" :key="axis.id" :value="String(axis.id)">
           <AccordionHeader>
             <span class="axis-header">
               <Tag :style="{ background: level.color + '20', color: level.color }" :value="axis.name" />
               <span style="margin-right: 8px">{{ axis.description }}</span>
+              <span v-if="authStore.isAdmin" class="axis-actions" @click.stop>
+                <Button icon="pi pi-pencil" text rounded size="small" @click.stop="openEditAxis(axis)" />
+                <Button icon="pi pi-trash" text rounded size="small" severity="danger" @click.stop="deleteAxis(axis.id)" />
+              </span>
             </span>
           </AccordionHeader>
           <AccordionContent>
             <ul v-if="axis.axis_objectives?.length" class="sub-items-list">
               <li v-for="obj in axis.axis_objectives" :key="obj.id">
                 <i class="pi pi-check-circle" :style="{ color: level.color }"></i>
-                {{ obj.objective_text }}
+                <span style="flex:1">{{ obj.objective_text }}</span>
+                <span v-if="authStore.isAdmin" class="obj-actions">
+                  <Button icon="pi pi-pencil" text rounded size="small" @click="openEditObj(obj)" />
+                  <Button icon="pi pi-trash" text rounded size="small" severity="danger" @click="deleteObj(obj.id)" />
+                </span>
               </li>
             </ul>
-            <p v-else class="axis-full-desc">{{ axis.description }}</p>
+            <Button v-if="authStore.isAdmin" label="إضافة هدف" icon="pi pi-plus" text size="small" @click="openAddObj(axis.id)" />
           </AccordionContent>
         </AccordionPanel>
       </Accordion>
@@ -186,7 +263,10 @@ async function deleteActivity(id) {
       <!-- Level 3 with multiple patterns -->
       <div v-if="levelId === 3 && patterns.length > 1" class="patterns-grid">
         <div v-for="pattern in patterns" :key="pattern.id" class="pattern-card">
-          <h3 :style="{ color: level.color }">{{ pattern.pattern_name }}</h3>
+          <div class="pattern-card-header">
+            <h3 :style="{ color: level.color }">{{ pattern.pattern_name }}</h3>
+            <Button v-if="authStore.isAdmin" icon="pi pi-plus" label="خطوة" text size="small" @click="openAddPatternStep(pattern.id)" />
+          </div>
           <div class="session-timeline">
             <div v-for="(step, idx) in pattern.steps" :key="idx" class="session-step" :style="{ '--step-color': level.color }">
               <div class="step-number">{{ step.order }}</div>
@@ -197,23 +277,36 @@ async function deleteActivity(id) {
                 </div>
                 <Tag severity="info" :value="`${step.duration} دقيقة`" />
               </div>
+              <div v-if="authStore.isAdmin" class="step-edit-actions">
+                <Button icon="pi pi-pencil" text rounded size="small" @click="openEditPatternStep(pattern.id, step, idx)" />
+                <Button icon="pi pi-trash" text rounded size="small" severity="danger" @click="deletePatternStep(pattern.id, idx)" />
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Level 1 & 2 single pattern -->
-      <div v-else class="session-timeline">
-        <div v-for="(step, idx) in sessionSteps" :key="idx" class="session-step stagger-item"
-             :style="{ animationDelay: `${idx * 0.1}s`, '--step-color': level.color }">
-          <div class="step-number">{{ step.order }}</div>
-          <div class="step-content">
-            <div class="step-header">
-              <i :class="step.icon" :style="{ color: level.color }"></i>
-              <strong>{{ step.name }}</strong>
+      <div v-else>
+        <div v-if="authStore.isAdmin && patterns[0]" style="margin-bottom:10px">
+          <Button icon="pi pi-plus" label="إضافة خطوة" text size="small" @click="openAddPatternStep(patterns[0].id)" />
+        </div>
+        <div class="session-timeline">
+          <div v-for="(step, idx) in sessionSteps" :key="idx" class="session-step stagger-item"
+               :style="{ animationDelay: `${idx * 0.1}s`, '--step-color': level.color }">
+            <div class="step-number">{{ step.order }}</div>
+            <div class="step-content">
+              <div class="step-header">
+                <i :class="step.icon" :style="{ color: level.color }"></i>
+                <strong>{{ step.name }}</strong>
+              </div>
+              <p v-if="step.description" class="step-desc">{{ step.description }}</p>
+              <Tag severity="info" :value="`${step.duration} دقيقة`" />
             </div>
-            <p v-if="step.description" class="step-desc">{{ step.description }}</p>
-            <Tag severity="info" :value="`${step.duration} دقيقة`" />
+            <div v-if="authStore.isAdmin && patterns[0]" class="step-edit-actions">
+              <Button icon="pi pi-pencil" text rounded size="small" @click="openEditPatternStep(patterns[0].id, step, idx)" />
+              <Button icon="pi pi-trash" text rounded size="small" severity="danger" @click="deletePatternStep(patterns[0].id, idx)" />
+            </div>
           </div>
         </div>
       </div>
@@ -319,6 +412,45 @@ async function deleteActivity(id) {
         <Button :label="editMode ? 'حفظ' : 'إضافة'" icon="pi pi-check" @click="saveActivity" />
       </template>
     </Dialog>
+
+    <!-- Axis Dialog -->
+    <Dialog v-model:visible="showAxisDialog" :header="editMode ? 'تعديل محور' : 'إضافة محور'" :style="{ width: '500px' }" modal>
+      <div class="dialog-form">
+        <div class="form-field"><label>اسم المحور</label><InputText v-model="axisForm.name" class="w-full" placeholder="مثال: الوعي الصوتي" /></div>
+        <div class="form-field"><label>الوصف</label><Textarea v-model="axisForm.description" rows="3" class="w-full" /></div>
+      </div>
+      <template #footer>
+        <Button label="إلغاء" text @click="showAxisDialog = false" />
+        <Button :label="editMode ? 'حفظ' : 'إضافة'" icon="pi pi-check" @click="saveAxis" />
+      </template>
+    </Dialog>
+
+    <!-- Objective Dialog -->
+    <Dialog v-model:visible="showObjDialog" :header="editMode ? 'تعديل هدف' : 'إضافة هدف'" :style="{ width: '500px' }" modal>
+      <div class="dialog-form">
+        <div class="form-field"><label>نص الهدف</label><Textarea v-model="objForm.objective_text" rows="3" class="w-full" /></div>
+      </div>
+      <template #footer>
+        <Button label="إلغاء" text @click="showObjDialog = false" />
+        <Button :label="editMode ? 'حفظ' : 'إضافة'" icon="pi pi-check" @click="saveObj" />
+      </template>
+    </Dialog>
+
+    <!-- Pattern Step Dialog -->
+    <Dialog v-model:visible="showPatternStepDialog" :header="editingStepIdx >= 0 ? 'تعديل خطوة' : 'إضافة خطوة'" :style="{ width: '500px' }" modal>
+      <div class="dialog-form">
+        <div class="form-field"><label>اسم الخطوة</label><InputText v-model="patternStepForm.name" class="w-full" /></div>
+        <div class="form-field"><label>الوصف</label><Textarea v-model="patternStepForm.description" rows="2" class="w-full" /></div>
+        <div class="form-row">
+          <div class="form-field"><label>المدة (دقيقة)</label><InputText v-model.number="patternStepForm.duration" type="number" class="w-full" /></div>
+          <div class="form-field"><label>الأيقونة</label><InputText v-model="patternStepForm.icon" class="w-full" placeholder="pi pi-book" /></div>
+        </div>
+      </div>
+      <template #footer>
+        <Button label="إلغاء" text @click="showPatternStepDialog = false" />
+        <Button :label="editingStepIdx >= 0 ? 'حفظ' : 'إضافة'" icon="pi pi-check" @click="savePatternStep" />
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -410,6 +542,11 @@ async function deleteActivity(id) {
 .form-field label { font-size: 0.9rem; font-weight: 600; }
 .w-full { width: 100%; }
 .section-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.section-header-row h2 { margin-bottom: 0; }
+.axis-actions, .obj-actions { display: flex; gap: 2px; flex-shrink: 0; margin-right: auto; }
+.axis-header { display: flex; align-items: center; gap: 8px; width: 100%; }
+.step-edit-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.pattern-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .section-header-row h2 { margin-bottom: 0; }
 .activities-list-fold { display: flex; flex-direction: column; gap: 10px; }
 .activity-fold-card { padding: 14px 16px; background: var(--bg-color); border-radius: 12px; border: 1px solid var(--border-color); border-right: 4px solid var(--ac); transition: all 0.2s; }
