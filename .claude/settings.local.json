@@ -10,7 +10,8 @@
       "Bash(gh workflow:*)",
       "Bash(npm run:*)",
       "Bash(node scripts/seed-day-activities.js)",
-      "Bash(node scripts/link-tools.js)"
+      "Bash(node scripts/link-tools.js)",
+      "Bash(node scripts/seed-notes.js)"
     ]
   }
 }

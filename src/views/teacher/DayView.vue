@@ -42,6 +42,10 @@ const assignMode = ref('library') // 'library' or 'custom'
 const selectedActivityId = ref(null)
 const customActivityForm = ref({ custom_name: '', custom_description: '', custom_steps: '', custom_tools: '', custom_tips: '', custom_duration: 8 })
 const showEditDayDialog = ref(false)
+const showNoteDialog = ref(false)
+const editingNoteDsa = ref(null)
+const editingNoteIdx = ref(-1)
+const noteText = ref('')
 const editDayForm = ref({})
 const showEditStepDialog = ref(false)
 const editingStepIdx = ref(-1)
@@ -217,6 +221,45 @@ async function deleteStep(idx) {
   }
 }
 
+// ===== Activity Notes CRUD =====
+function openAddNote(dsa) {
+  editingNoteDsa.value = dsa
+  editingNoteIdx.value = -1
+  noteText.value = ''
+  showNoteDialog.value = true
+}
+
+function openEditNote(dsa, idx) {
+  editingNoteDsa.value = dsa
+  editingNoteIdx.value = idx
+  noteText.value = dsa.notes[idx]
+  showNoteDialog.value = true
+}
+
+async function saveNote() {
+  const dsa = editingNoteDsa.value
+  const notes = [...(dsa.notes || [])]
+  if (editingNoteIdx.value >= 0) {
+    notes[editingNoteIdx.value] = noteText.value
+  } else {
+    notes.push(noteText.value)
+  }
+  const { error } = await contentStore.saveDayStepActivity({ id: dsa.id, notes })
+  if (!error) {
+    showNoteDialog.value = false
+    dayStepActivities.value = await contentStore.fetchDayStepActivities(route.params.dayId)
+    toast.add({ severity: 'success', summary: 'تم', detail: 'تم حفظ الملاحظة', life: 3000 })
+  }
+}
+
+async function deleteNote(dsa, idx) {
+  const notes = [...(dsa.notes || [])]
+  notes.splice(idx, 1)
+  await contentStore.saveDayStepActivity({ id: dsa.id, notes })
+  dayStepActivities.value = await contentStore.fetchDayStepActivities(route.params.dayId)
+  toast.add({ severity: 'success', summary: 'تم', detail: 'تم حذف الملاحظة', life: 3000 })
+}
+
 function getStepActivities(stepIdx) {
   return dayStepActivities.value.filter(a => a.step_index === stepIdx)
 }
@@ -377,6 +420,25 @@ async function removeStepActivity(dsaId) {
                 <div v-if="getActivityDisplay(dsa).tips?.length" class="mini-tips">
                   <span v-for="(t, ti) in getActivityDisplay(dsa).tips" :key="ti" class="mini-tip">💡 {{ t }}</span>
                 </div>
+
+                <!-- Day-specific Notes -->
+                <div class="activity-notes-section">
+                  <div class="notes-header">
+                    <strong><i class="pi pi-bookmark" style="color: #845EF7"></i> ملاحظات خاصة بهذا اليوم</strong>
+                    <Button v-if="authStore.isAdmin" icon="pi pi-plus" label="إضافة ملاحظة" text size="small" @click="openAddNote(dsa)" />
+                  </div>
+                  <div v-if="dsa.notes?.length" class="notes-list">
+                    <div v-for="(note, ni) in dsa.notes" :key="ni" class="note-item">
+                      <i class="pi pi-comment" style="color: #845EF7; flex-shrink:0; margin-top:3px"></i>
+                      <span>{{ note }}</span>
+                      <div v-if="authStore.isAdmin" class="note-actions">
+                        <Button icon="pi pi-pencil" text rounded size="small" @click="openEditNote(dsa, ni)" />
+                        <Button icon="pi pi-trash" text rounded size="small" severity="danger" @click="deleteNote(dsa, ni)" />
+                      </div>
+                    </div>
+                  </div>
+                  <p v-else class="no-notes">لا توجد ملاحظات لهذا النشاط</p>
+                </div>
               </div>
             </div>
             <Button v-if="authStore.isAdmin" label="إضافة نشاط لهذه الخطوة" icon="pi pi-plus" text size="small" :style="{ color: level.color }" @click="openAssignActivity(idx)" class="add-step-act-btn" />
@@ -509,6 +571,20 @@ async function removeStepActivity(dsaId) {
       </template>
     </Dialog>
 
+    <!-- Note Dialog -->
+    <Dialog v-model:visible="showNoteDialog" :header="editingNoteIdx >= 0 ? 'تعديل ملاحظة' : 'إضافة ملاحظة'" :style="{ width: '500px' }" modal>
+      <div class="dialog-form">
+        <div class="form-field">
+          <label>الملاحظة</label>
+          <Textarea v-model="noteText" rows="4" class="w-full" placeholder="اكتب ملاحظة خاصة بهذا النشاط في هذا اليوم..." />
+        </div>
+      </div>
+      <template #footer>
+        <Button label="إلغاء" text @click="showNoteDialog = false" />
+        <Button :label="editingNoteIdx >= 0 ? 'حفظ' : 'إضافة'" icon="pi pi-check" @click="saveNote" :disabled="!noteText.trim()" />
+      </template>
+    </Dialog>
+
     <!-- Edit/Add Step Dialog -->
     <Dialog v-model:visible="showEditStepDialog" :header="editingStepIdx >= 0 ? 'تعديل خطوة' : 'إضافة خطوة جديدة'" :style="{ width: '500px' }" modal>
       <div class="dialog-form">
@@ -561,6 +637,14 @@ async function removeStepActivity(dsaId) {
 .mini-tips { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
 .mini-tip { font-size: 0.78rem; color: var(--text-muted); }
 .add-step-act-btn { margin-top: 4px; }
+.activity-notes-section { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-color); }
+.notes-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.notes-header strong { font-size: 0.85rem; display: flex; align-items: center; gap: 6px; color: #845EF7; }
+.notes-list { display: flex; flex-direction: column; gap: 6px; }
+.note-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; background: #F3F0FF; border-radius: 8px; font-size: 0.83rem; color: var(--text-secondary); line-height: 1.7; }
+.note-item span { flex: 1; }
+.note-actions { display: flex; gap: 1px; flex-shrink: 0; }
+.no-notes { font-size: 0.8rem; color: var(--text-muted); margin: 0; font-style: italic; }
 .assign-mode-toggle { display: flex; gap: 8px; margin-bottom: 16px; }
 .library-picker { display: flex; flex-direction: column; gap: 12px; }
 .lib-option { display: flex; flex-direction: column; }
