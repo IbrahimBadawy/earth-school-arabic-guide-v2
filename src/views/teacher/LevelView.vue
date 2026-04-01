@@ -12,6 +12,7 @@ import AccordionHeader from 'primevue/accordionheader'
 import AccordionContent from 'primevue/accordioncontent'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
+import IconPicker from '@/components/common/IconPicker.vue'
 import Textarea from 'primevue/textarea'
 import { useToast } from 'primevue/usetoast'
 
@@ -443,7 +444,7 @@ async function deletePatternStep(patternId, idx) {
         <div class="form-field"><label>الوصف</label><Textarea v-model="patternStepForm.description" rows="2" class="w-full" /></div>
         <div class="form-row">
           <div class="form-field"><label>المدة (دقيقة)</label><InputText v-model.number="patternStepForm.duration" type="number" class="w-full" /></div>
-          <div class="form-field"><label>الأيقونة</label><InputText v-model="patternStepForm.icon" class="w-full" placeholder="pi pi-book" /></div>
+          <div class="form-field"><label>الأيقونة</label><IconPicker v-model="patternStepForm.icon" /></div>
         </div>
       </div>
       <template #footer>
