@@ -99,8 +99,11 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const authStore = useAuthStore()
 
+  // Always wait for auth to be fully initialized
   if (!authStore.initialized) {
     await authStore.initialize()
+    // Small delay to ensure Supabase session is fully set
+    await new Promise(r => setTimeout(r, 100))
   }
 
   if (to.meta.requiresAuth && !authStore.user) {

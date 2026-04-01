@@ -9,6 +9,7 @@ import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import Textarea from 'primevue/textarea'
 import Dropdown from 'primevue/dropdown'
+import MultiSelect from 'primevue/multiselect'
 import { useToast } from 'primevue/usetoast'
 
 const contentStore = useContentStore()
@@ -16,6 +17,7 @@ const authStore = useAuthStore()
 const toast = useToast()
 
 const allActivities = ref([])
+const allTools = ref([])
 const searchQuery = ref('')
 const selectedLevel = ref(null)
 const selectedCategory = ref(null)
@@ -23,6 +25,8 @@ const expandedActivity = ref(null)
 const showAddDialog = ref(false)
 const editMode = ref(false)
 const activityForm = ref({})
+const showAddToolDialog = ref(false)
+const newToolForm = ref({ name: '', category: '', icon: 'pi pi-box', levels: [], description: '' })
 
 const levelOptions = [
   { label: 'الكل', value: null },
@@ -35,6 +39,7 @@ const levelColors = { 1: '#4CAF93', 2: '#FF9F43', 3: '#6C63FF' }
 
 onMounted(async () => {
   await loadActivities()
+  allTools.value = await contentStore.fetchTeachingTools() || []
 })
 
 async function loadActivities() {
@@ -67,9 +72,16 @@ function toggleExpand(id) {
   expandedActivity.value = expandedActivity.value === id ? null : id
 }
 
+function getToolNames(activity) {
+  if (activity.tool_ids?.length) {
+    return activity.tool_ids.map(tid => allTools.value.find(t => t.id === tid)?.name).filter(Boolean)
+  }
+  return activity.tools || []
+}
+
 function openAddActivity() {
   editMode.value = false
-  activityForm.value = { level_id: 1, category: '', name: '', description: '', activity_type: '', duration: 8, steps: '', tools: '', teacher_tips: '', sort_order: allActivities.value.length + 1, differentiation: { advanced: '', struggling: '' } }
+  activityForm.value = { level_id: 1, category: '', name: '', description: '', activity_type: '', duration: 8, steps: '', tool_ids: [], teacher_tips: '', sort_order: allActivities.value.length + 1, differentiation: { advanced: '', struggling: '' } }
   showAddDialog.value = true
 }
 
@@ -78,7 +90,7 @@ function openEditActivity(activity) {
   activityForm.value = {
     ...activity,
     steps: (activity.steps || []).join('\n'),
-    tools: (activity.tools || []).join('، '),
+    tool_ids: activity.tool_ids || [],
     teacher_tips: (activity.teacher_tips || []).join('\n'),
     differentiation: activity.differentiation || { advanced: '', struggling: '' }
   }
@@ -86,11 +98,13 @@ function openEditActivity(activity) {
 }
 
 async function saveActivity() {
+  // Build tools text array from tool_ids for backward compat
+  const toolNames = activityForm.value.tool_ids.map(tid => allTools.value.find(t => t.id === tid)?.name).filter(Boolean)
   const payload = {
     ...activityForm.value,
-    steps: activityForm.value.steps.split('\n').filter(s => s.trim()),
-    tools: activityForm.value.tools.split('،').map(t => t.trim()).filter(t => t),
-    teacher_tips: activityForm.value.teacher_tips.split('\n').filter(t => t.trim())
+    steps: typeof activityForm.value.steps === 'string' ? activityForm.value.steps.split('\n').filter(s => s.trim()) : activityForm.value.steps,
+    tools: toolNames,
+    teacher_tips: typeof activityForm.value.teacher_tips === 'string' ? activityForm.value.teacher_tips.split('\n').filter(t => t.trim()) : activityForm.value.teacher_tips
   }
   const { error } = await contentStore.upsertRecord('activities', payload)
   if (!error) {
@@ -99,6 +113,18 @@ async function saveActivity() {
     await loadActivities()
   } else {
     toast.add({ severity: 'error', summary: 'خطأ', detail: error.message, life: 5000 })
+  }
+}
+
+async function addNewTool() {
+  if (!newToolForm.value.name.trim()) return
+  const { data, error } = await contentStore.upsertRecord('teaching_tools', newToolForm.value)
+  if (!error && data) {
+    allTools.value.push(data)
+    activityForm.value.tool_ids = [...(activityForm.value.tool_ids || []), data.id]
+    showAddToolDialog.value = false
+    newToolForm.value = { name: '', category: '', icon: 'pi pi-box', levels: [], description: '' }
+    toast.add({ severity: 'success', summary: 'تم', detail: 'تم إضافة الأداة', life: 3000 })
   }
 }
 
@@ -185,10 +211,10 @@ async function deleteActivity(id) {
           </div>
 
           <!-- Tools -->
-          <div v-if="activity.tools?.length" class="act-section">
+          <div v-if="getToolNames(activity).length" class="act-section">
             <h4><i class="pi pi-wrench" style="color: #339AF0"></i> الأدوات المطلوبة</h4>
             <div class="tools-chips">
-              <span v-for="tool in activity.tools" :key="tool" class="tool-chip">{{ tool }}</span>
+              <span v-for="tool in getToolNames(activity)" :key="tool" class="tool-chip">{{ tool }}</span>
             </div>
           </div>
 
@@ -263,8 +289,11 @@ async function deleteActivity(id) {
           <Textarea v-model="activityForm.steps" rows="5" class="w-full" placeholder="1. الخطوة الأولى&#10;2. الخطوة الثانية&#10;3. الخطوة الثالثة" />
         </div>
         <div class="form-field">
-          <label>الأدوات (مفصولة بفاصلة ،)</label>
-          <InputText v-model="activityForm.tools" class="w-full" placeholder="بطاقات حروف، ألوان، صلصال" />
+          <label>الأدوات (اختر من القائمة)</label>
+          <div class="tools-picker-row">
+            <MultiSelect v-model="activityForm.tool_ids" :options="allTools" optionLabel="name" optionValue="id" placeholder="اختر الأدوات" class="w-full" filter filterPlaceholder="ابحث عن أداة..." display="chip" />
+            <Button icon="pi pi-plus" v-tooltip.top="'إضافة أداة جديدة'" size="small" @click="showAddToolDialog = true" />
+          </div>
         </div>
         <div class="form-field">
           <label>نصائح للمعلمة (كل نصيحة في سطر)</label>
@@ -286,10 +315,25 @@ async function deleteActivity(id) {
         <Button :label="editMode ? 'حفظ' : 'إضافة'" icon="pi pi-check" @click="saveActivity" />
       </template>
     </Dialog>
+
+    <!-- Add New Tool Dialog -->
+    <Dialog v-model:visible="showAddToolDialog" header="إضافة أداة تعليمية جديدة" :style="{ width: '450px' }" modal>
+      <div class="dialog-form">
+        <div class="form-field"><label>اسم الأداة</label><InputText v-model="newToolForm.name" class="w-full" placeholder="مثال: بطاقات ملونة" /></div>
+        <div class="form-field"><label>التصنيف</label><InputText v-model="newToolForm.category" class="w-full" placeholder="مثال: بطاقات" /></div>
+        <div class="form-field"><label>الوصف</label><InputText v-model="newToolForm.description" class="w-full" /></div>
+      </div>
+      <template #footer>
+        <Button label="إلغاء" text @click="showAddToolDialog = false" />
+        <Button label="إضافة" icon="pi pi-check" @click="addNewTool" />
+      </template>
+    </Dialog>
   </div>
 </template>
 
 <style scoped>
+.tools-picker-row { display: flex; gap: 8px; align-items: flex-start; }
+.tools-picker-row .w-full { flex: 1; }
 .header-row { display: flex; justify-content: space-between; align-items: flex-start; }
 .filters-bar { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; margin-bottom: 24px; }
 .filter-group { display: flex; flex-direction: column; gap: 6px; }
