@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useContentStore } from '@/stores/content'
 import { useAuthStore } from '@/stores/auth'
+import QuickNav from '@/components/common/QuickNav.vue'
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
 import Accordion from 'primevue/accordion'
@@ -127,6 +128,7 @@ async function deleteActivity(id) {
 
 <template>
   <div class="level-view" v-if="level">
+    <QuickNav />
     <!-- Level Header -->
     <div class="level-header animate__animated animate__fadeIn" :style="{ '--lc': level.color }">
       <div class="level-header-content">
