@@ -42,6 +42,9 @@ const assignMode = ref('library') // 'library' or 'custom'
 const selectedActivityId = ref(null)
 const customActivityForm = ref({ custom_name: '', custom_description: '', custom_steps: '', custom_tools: '', custom_tips: '', custom_duration: 8 })
 const showEditDayDialog = ref(false)
+const expandedAct = ref(null)
+const showEditActDialog = ref(false)
+const editActForm = ref({})
 const showNoteDialog = ref(false)
 const editingNoteDsa = ref(null)
 const editingNoteIdx = ref(-1)
@@ -219,6 +222,55 @@ async function deleteStep(idx) {
     sessionSteps.value = steps
     toast.add({ severity: 'success', summary: 'تم', detail: 'تم حذف الخطوة', life: 3000 })
   }
+}
+
+// ===== Activity fold & edit =====
+function toggleAct(id) { expandedAct.value = expandedAct.value === id ? null : id }
+
+function openEditAct(dsa) {
+  const act = dsa.activities || {}
+  editActForm.value = {
+    id: act.id,
+    name: dsa.custom_name || act.name || '',
+    description: dsa.custom_description || act.description || '',
+    activity_type: act.activity_type || '',
+    duration: dsa.custom_duration || act.duration || 8,
+    steps: (dsa.custom_steps?.length ? dsa.custom_steps : act.steps || []).join('\n'),
+    tools: (dsa.custom_tools?.length ? dsa.custom_tools : act.tools || []).join('، '),
+    teacher_tips: (dsa.custom_tips?.length ? dsa.custom_tips : act.teacher_tips || []).join('\n'),
+    _dsa_id: dsa.id,
+    _is_library: !!dsa.activity_id
+  }
+  showEditActDialog.value = true
+}
+
+async function saveEditAct() {
+  const f = editActForm.value
+  const stepsArr = f.steps.split('\n').filter(s => s.trim())
+  const toolsArr = f.tools.split('،').map(t => t.trim()).filter(t => t)
+  const tipsArr = f.teacher_tips.split('\n').filter(t => t.trim())
+
+  if (f._is_library && f.id) {
+    // Update the library activity directly
+    await contentStore.upsertRecord('activities', {
+      id: f.id, name: f.name, description: f.description, activity_type: f.activity_type,
+      duration: f.duration, steps: stepsArr, tools: toolsArr, teacher_tips: tipsArr
+    })
+  }
+  // Also save customizations on the day_step_activity
+  await contentStore.saveDayStepActivity({
+    id: f._dsa_id,
+    custom_name: f._is_library ? null : f.name,
+    custom_description: f._is_library ? null : f.description,
+    custom_duration: f.duration,
+    custom_steps: f._is_library ? [] : stepsArr,
+    custom_tools: f._is_library ? [] : toolsArr,
+    custom_tips: f._is_library ? [] : tipsArr
+  })
+
+  showEditActDialog.value = false
+  toast.add({ severity: 'success', summary: 'تم', detail: 'تم حفظ التعديلات', life: 3000 })
+  await loadData()
 }
 
 // ===== Activity Notes CRUD =====
@@ -401,27 +453,46 @@ async function removeStepActivity(dsaId) {
           <!-- Assigned Activities for this step -->
           <div class="timeline-step-details">
             <div v-if="getStepActivities(idx).length" class="assigned-activities">
-              <div v-for="dsa in getStepActivities(idx)" :key="dsa.id" class="assigned-act-card">
-                <div class="assigned-act-header">
-                  <div>
+              <div v-for="dsa in getStepActivities(idx)" :key="dsa.id" class="assigned-act-card" :class="{ expanded: expandedAct === dsa.id }">
+                <!-- Foldable Header -->
+                <div class="assigned-act-header" @click="toggleAct(dsa.id)">
+                  <div class="act-title-row">
+                    <i :class="expandedAct === dsa.id ? 'pi pi-chevron-down' : 'pi pi-chevron-left'" class="fold-icon"></i>
                     <strong>{{ getActivityDisplay(dsa).name }}</strong>
                     <Tag :value="getActivityDisplay(dsa).type" size="small" :style="{ background: level.color + '15', color: level.color }" />
                     <Tag v-if="getActivityDisplay(dsa).isLibrary" value="من المكتبة" size="small" severity="info" />
+                    <span class="act-dur-badge"><i class="pi pi-clock"></i> {{ getActivityDisplay(dsa).duration }} د</span>
                   </div>
-                  <Button v-if="authStore.isAdmin" icon="pi pi-times" text rounded size="small" severity="danger" v-tooltip.top="'إزالة'" @click="removeStepActivity(dsa.id)" />
-                </div>
-                <p v-if="getActivityDisplay(dsa).description">{{ getActivityDisplay(dsa).description }}</p>
-                <div v-if="getActivityDisplay(dsa).steps?.length" class="mini-steps-list">
-                  <ol><li v-for="(s, si) in getActivityDisplay(dsa).steps" :key="si">{{ s }}</li></ol>
-                </div>
-                <div v-if="getActivityDisplay(dsa).tools?.length" class="mini-tools">
-                  <span v-for="tool in getActivityDisplay(dsa).tools" :key="tool" class="tool-chip"><i class="pi pi-wrench"></i> {{ tool }}</span>
-                </div>
-                <div v-if="getActivityDisplay(dsa).tips?.length" class="mini-tips">
-                  <span v-for="(t, ti) in getActivityDisplay(dsa).tips" :key="ti" class="mini-tip">💡 {{ t }}</span>
+                  <div class="act-header-btns" @click.stop>
+                    <Button v-if="authStore.isAdmin" icon="pi pi-pencil" text rounded size="small" v-tooltip.top="'تعديل النشاط'" @click="openEditAct(dsa)" />
+                    <Button v-if="authStore.isAdmin" icon="pi pi-times" text rounded size="small" severity="danger" v-tooltip.top="'إزالة'" @click="removeStepActivity(dsa.id)" />
+                  </div>
                 </div>
 
-                <!-- Day-specific Notes -->
+                <!-- Collapsed preview -->
+                <p v-if="expandedAct !== dsa.id && getActivityDisplay(dsa).description" class="act-preview-text">{{ getActivityDisplay(dsa).description }}</p>
+
+                <!-- Expanded body -->
+                <div v-if="expandedAct === dsa.id" class="act-expanded-body">
+                  <p v-if="getActivityDisplay(dsa).description" class="act-full-desc">{{ getActivityDisplay(dsa).description }}</p>
+                  <div v-if="getActivityDisplay(dsa).steps?.length" class="mini-steps-list">
+                    <strong><i class="pi pi-list-check" :style="{color: level.color}"></i> خطوات التنفيذ:</strong>
+                    <ol><li v-for="(s, si) in getActivityDisplay(dsa).steps" :key="si">{{ s }}</li></ol>
+                  </div>
+                  <div v-if="getActivityDisplay(dsa).tools?.length" class="mini-tools-section">
+                    <strong><i class="pi pi-wrench" style="color:#339AF0"></i> الأدوات:</strong>
+                    <div class="mini-tools">
+                      <span v-for="tool in getActivityDisplay(dsa).tools" :key="tool" class="tool-chip"><i class="pi pi-wrench"></i> {{ tool }}</span>
+                    </div>
+                  </div>
+                  <div v-if="getActivityDisplay(dsa).tips?.length" class="mini-tips-section">
+                    <strong><i class="pi pi-lightbulb" style="color:#FFD43B"></i> نصائح للمعلمة:</strong>
+                    <div class="mini-tips">
+                      <span v-for="(t, ti) in getActivityDisplay(dsa).tips" :key="ti" class="mini-tip">💡 {{ t }}</span>
+                    </div>
+                  </div>
+
+                  <!-- Day-specific Notes -->
                 <div class="activity-notes-section">
                   <div class="notes-header">
                     <strong><i class="pi pi-bookmark" style="color: #845EF7"></i> ملاحظات خاصة بهذا اليوم</strong>
@@ -439,6 +510,7 @@ async function removeStepActivity(dsaId) {
                   </div>
                   <p v-else class="no-notes">لا توجد ملاحظات لهذا النشاط</p>
                 </div>
+                </div><!-- /act-expanded-body -->
               </div>
             </div>
             <Button v-if="authStore.isAdmin" label="إضافة نشاط لهذه الخطوة" icon="pi pi-plus" text size="small" :style="{ color: level.color }" @click="openAssignActivity(idx)" class="add-step-act-btn" />
@@ -571,6 +643,26 @@ async function removeStepActivity(dsaId) {
       </template>
     </Dialog>
 
+    <!-- Edit Activity Dialog -->
+    <Dialog v-model:visible="showEditActDialog" header="تعديل النشاط" :style="{ width: '600px' }" modal>
+      <div class="dialog-form" v-if="editActForm">
+        <Tag v-if="editActForm._is_library" value="التعديل سيُحفظ في مكتبة الأنشطة" severity="info" style="margin-bottom:8px" />
+        <div class="form-row">
+          <div class="form-field"><label>اسم النشاط</label><InputText v-model="editActForm.name" class="w-full" /></div>
+          <div class="form-field"><label>النوع</label><InputText v-model="editActForm.activity_type" class="w-full" /></div>
+        </div>
+        <div class="form-field"><label>الوصف</label><Textarea v-model="editActForm.description" rows="2" class="w-full" /></div>
+        <div class="form-field"><label>المدة (دقيقة)</label><InputText v-model.number="editActForm.duration" type="number" class="w-full" /></div>
+        <div class="form-field"><label>خطوات التنفيذ (كل خطوة في سطر)</label><Textarea v-model="editActForm.steps" rows="5" class="w-full" /></div>
+        <div class="form-field"><label>الأدوات (مفصولة بفاصلة ،)</label><InputText v-model="editActForm.tools" class="w-full" /></div>
+        <div class="form-field"><label>نصائح للمعلمة (كل نصيحة في سطر)</label><Textarea v-model="editActForm.teacher_tips" rows="4" class="w-full" /></div>
+      </div>
+      <template #footer>
+        <Button label="إلغاء" text @click="showEditActDialog = false" />
+        <Button label="حفظ" icon="pi pi-check" @click="saveEditAct" />
+      </template>
+    </Dialog>
+
     <!-- Note Dialog -->
     <Dialog v-model:visible="showNoteDialog" :header="editingNoteIdx >= 0 ? 'تعديل ملاحظة' : 'إضافة ملاحظة'" :style="{ width: '500px' }" modal>
       <div class="dialog-form">
@@ -628,10 +720,17 @@ async function removeStepActivity(dsaId) {
 .step-actions { display: flex; gap: 2px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .assigned-activities { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
-.assigned-act-card { padding: 12px; background: white; border-radius: 10px; border: 1px solid var(--border-color); border-right: 3px solid var(--primary-color); }
-.assigned-act-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
-.assigned-act-header > div { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.assigned-act-card p { font-size: 0.83rem; color: var(--text-secondary); margin: 4px 0 8px; line-height: 1.6; }
+.assigned-act-card { padding: 12px; background: white; border-radius: 10px; border: 1px solid var(--border-color); border-right: 3px solid var(--primary-color); transition: all 0.2s; }
+.assigned-act-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+.act-title-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex: 1; }
+.fold-icon { font-size: 0.7rem; color: var(--text-muted); transition: transform 0.2s; }
+.act-dur-badge { font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 3px; }
+.act-header-btns { display: flex; gap: 2px; flex-shrink: 0; }
+.act-preview-text { font-size: 0.8rem; color: var(--text-muted); margin: 6px 0 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.act-expanded-body { padding-top: 10px; margin-top: 8px; border-top: 1px solid var(--border-color); }
+.act-full-desc { font-size: 0.85rem; color: var(--text-secondary); margin: 0 0 10px; line-height: 1.7; }
+.mini-steps-list strong, .mini-tools-section strong, .mini-tips-section strong { font-size: 0.83rem; display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
+.mini-tools-section, .mini-tips-section { margin-top: 8px; }
 .mini-steps-list ol { padding-right: 18px; margin: 0 0 6px; }
 .mini-steps-list li { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.7; }
 .mini-tips { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
