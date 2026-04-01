@@ -1,4 +1,4 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const routes = [
@@ -85,11 +85,16 @@ const routes = [
     name: 'Export',
     component: () => import('@/views/ExportView.vue'),
     meta: { requiresAuth: true }
+  },
+  // Catch-all: redirect unknown routes to home
+  {
+    path: '/:pathMatch(.*)*',
+    redirect: '/'
   }
 ]
 
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory('/earth-school-arabic-guide-v2/'),
   routes,
   scrollBehavior() {
     return { top: 0 }
@@ -99,10 +104,8 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const authStore = useAuthStore()
 
-  // Always wait for auth to be fully initialized
   if (!authStore.initialized) {
     await authStore.initialize()
-    // Small delay to ensure Supabase session is fully set
     await new Promise(r => setTimeout(r, 100))
   }
 
