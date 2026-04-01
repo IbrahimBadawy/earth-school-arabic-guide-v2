@@ -44,7 +44,7 @@ async function handleLogin() {
       <div class="login-header">
         <img src="/LOGO.png" alt="مدرسة الأرض" class="login-logo-img" />
         <h1>مدرسة الأرض</h1>
-        <p>دليل معلمات اللغة العربية</p>
+        <p>دليل المعلمات</p>
       </div>
 
       <form @submit.prevent="handleLogin" class="login-form">

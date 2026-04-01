@@ -60,8 +60,8 @@ async function exportToWord() {
 
     // Title
     sections.push(mkp('مدرسة الأرض', { bold: true, size: 48, align: AlignmentType.CENTER, after: 200 }))
-    sections.push(mkp('دليل معلمات اللغة العربية', { bold: true, size: 36, align: AlignmentType.CENTER, after: 200 }))
-    sections.push(mkp('حقيبة المعلمة الشاملة لفقرة اللغة العربية', { size: 24, align: AlignmentType.CENTER, after: 400 }))
+    sections.push(mkp('دليل المعلمات', { bold: true, size: 36, align: AlignmentType.CENTER, after: 200 }))
+    sections.push(mkp('حقيبة المعلمة الشاملة', { size: 24, align: AlignmentType.CENTER, after: 400 }))
 
     // Unit Info
     sections.push(h1('معلومات الوحدة التعليمية'))

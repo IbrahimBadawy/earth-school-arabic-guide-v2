@@ -51,7 +51,7 @@ function toggleMenu(event) {
       />
       <div class="app-bar-title">
         <img src="/LOGO.png" alt="مدرسة الأرض" class="app-logo" />
-        <span class="title-text">دليل معلمات اللغة العربية</span>
+        <span class="title-text">دليل المعلمات</span>
         <span v-if="contentStore.activeUnit" class="active-unit-badge">
           <i class="pi pi-folder"></i>
           {{ contentStore.activeUnit.name }}
