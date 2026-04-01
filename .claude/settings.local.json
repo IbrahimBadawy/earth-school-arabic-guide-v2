@@ -8,7 +8,8 @@
       "Bash(gh api:*)",
       "Bash(gh run:*)",
       "Bash(gh workflow:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(node scripts/seed-day-activities.js)"
     ]
   }
 }
