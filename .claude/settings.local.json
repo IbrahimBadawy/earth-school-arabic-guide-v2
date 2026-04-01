@@ -14,7 +14,8 @@
       "Bash(node scripts/seed-notes.js)",
       "Bash(node scripts/seed-notes-v2.js)",
       "Bash(node scripts/improve-content.js)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(node -e \":*)"
     ]
   }
 }

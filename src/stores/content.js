@@ -235,19 +235,25 @@ export const useContentStore = defineStore('content', () => {
     if (listeningGoals.value.length) return listeningGoals.value
     let query = supabase.from('listening_goals').select('*').order('sort_order')
     if (activeUnit.value?.id) query = query.eq('unit_id', activeUnit.value.id)
+    if (activeSubject.value?.id) {
+      query = query.or(`subject_id.eq.${activeSubject.value.id},is_global.eq.true`)
+    }
     const { data } = await query
     listeningGoals.value = data || []
     return data
   }
 
   async function fetchLevelAxes(levelId) {
-    let query = supabase.from('level_axes').select('*, axis_objectives(*)').eq('level_id', levelId).order('sort_order')
+    let query = supabase.from('level_axes').select('*, axis_objectives(*)').order('sort_order')
+    if (activeSubject.value?.id && levelId) {
+      query = query.or(`and(subject_id.eq.${activeSubject.value.id},level_id.eq.${levelId}),is_global.eq.true`)
+    } else if (levelId) {
+      query = query.eq('level_id', levelId)
+    }
+    // Also handle unit_id: include global (null unit_id) + current unit
     if (activeUnit.value?.id) {
       query = query.or(`unit_id.eq.${activeUnit.value.id},unit_id.is.null`)
-    } else {
-      query = query.is('unit_id', null)
     }
-    if (activeSubject.value?.id) query = query.eq('subject_id', activeSubject.value.id)
     const { data } = await query
     if (data) {
       data.forEach(a => { if (a.axis_objectives) a.axis_objectives.sort((x, y) => x.sort_order - y.sort_order) })
@@ -256,22 +262,32 @@ export const useContentStore = defineStore('content', () => {
   }
 
   async function fetchActivities(levelId) {
-    let query = supabase.from('activities').select('*').eq('level_id', levelId).order('category').order('sort_order')
-    if (activeSubject.value?.id) query = query.eq('subject_id', activeSubject.value.id)
+    let query = supabase.from('activities').select('*').order('category').order('sort_order')
+    if (activeSubject.value?.id && levelId) {
+      query = query.or(`and(subject_id.eq.${activeSubject.value.id},level_id.eq.${levelId}),is_global.eq.true`)
+    } else if (levelId) {
+      query = query.eq('level_id', levelId)
+    }
     const { data } = await query
     return data || []
   }
 
   async function fetchAssessmentItems(levelId) {
-    let query = supabase.from('assessment_items').select('*').eq('level_id', levelId).order('sort_order')
-    if (activeSubject.value?.id) query = query.eq('subject_id', activeSubject.value.id)
+    let query = supabase.from('assessment_items').select('*').order('sort_order')
+    if (activeSubject.value?.id && levelId) {
+      query = query.or(`and(subject_id.eq.${activeSubject.value.id},level_id.eq.${levelId}),is_global.eq.true`)
+    } else if (levelId) {
+      query = query.eq('level_id', levelId)
+    }
     const { data } = await query
     return data || []
   }
 
   async function fetchAllAssessments() {
     let query = supabase.from('assessment_items').select('*').order('level_id').order('sort_order')
-    if (activeSubject.value?.id) query = query.eq('subject_id', activeSubject.value.id)
+    if (activeSubject.value?.id) {
+      query = query.or(`subject_id.eq.${activeSubject.value.id},is_global.eq.true`)
+    }
     const { data } = await query
     assessmentItems.value = data || []
     return data
@@ -279,7 +295,11 @@ export const useContentStore = defineStore('content', () => {
 
   async function fetchTeachingTools() {
     if (teachingTools.value.length) return teachingTools.value
-    const { data } = await supabase.from('teaching_tools').select('*').order('category')
+    let query = supabase.from('teaching_tools').select('*').order('category')
+    if (activeSubject.value?.id) {
+      query = query.or(`subject_id.eq.${activeSubject.value.id},is_global.eq.true,subject_id.is.null`)
+    }
+    const { data } = await query
     teachingTools.value = data || []
     return data
   }
@@ -419,9 +439,9 @@ export const useContentStore = defineStore('content', () => {
     }
 
     if (subjectFilter) {
-      axesQ = axesQ.eq('subject_id', subjectFilter)
-      activitiesQ = activitiesQ.eq('subject_id', subjectFilter)
-      assessmentsQ = assessmentsQ.eq('subject_id', subjectFilter)
+      axesQ = axesQ.or(`subject_id.eq.${subjectFilter},is_global.eq.true`)
+      activitiesQ = activitiesQ.or(`subject_id.eq.${subjectFilter},is_global.eq.true`)
+      assessmentsQ = assessmentsQ.or(`subject_id.eq.${subjectFilter},is_global.eq.true`)
       patternsQ = patternsQ.eq('subject_id', subjectFilter)
       weeksQ = weeksQ.eq('subject_id', subjectFilter)
     }
@@ -453,9 +473,9 @@ export const useContentStore = defineStore('content', () => {
     if (unitTables.includes(table) && activeUnit.value?.id && !record.unit_id) {
       record = { ...record, unit_id: activeUnit.value.id }
     }
-    // Auto-set subject_id for tables that support it
+    // Auto-set subject_id for tables that support it (skip if record is global)
     const subjectTables = ['weeks', 'activities', 'assessment_items', 'level_axes', 'session_patterns']
-    if (subjectTables.includes(table) && activeSubject.value?.id && !record.subject_id) {
+    if (subjectTables.includes(table) && activeSubject.value?.id && !record.subject_id && !record.is_global) {
       record = { ...record, subject_id: activeSubject.value.id }
     }
     const { data, error } = record.id
